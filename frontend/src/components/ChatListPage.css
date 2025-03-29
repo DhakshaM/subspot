@@ -96,6 +96,7 @@ html, body {
   margin: 0;
   padding: 0;
   list-style: none;
+  align-items: center;
 }
 .chat-list::-webkit-scrollbar {
   width: 8px;
@@ -236,6 +237,7 @@ html, body {
 .message-bubble.mine {
   background-color: #075b94;
 }
+
 .message-bubble.theirs {
   /* background stays #032c47; margin automatically set by wrapper */
 }
