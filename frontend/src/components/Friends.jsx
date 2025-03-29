@@ -4,7 +4,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCircleUser, faSearch } from '@fortawesome/free-solid-svg-icons';
 import { Link, useNavigate } from 'react-router-dom';
 import ChatIcon from './ChatIcon'; 
-import axios from 'axios'; // Make sure you have axios installed
+import axios from 'axios';
 
 function Friends() {
   const [activeTab, setActiveTab] = useState('suggested');
@@ -16,7 +16,7 @@ function Friends() {
   const [userInfo, setUserInfo] = useState({ username: '', email: '' });
   const API_BASE_URL = 'http://localhost:8000/subspot/';
   
-  //user dropdown
+  // Fetch logged-in user info
   useEffect(() => {
     fetch(`${API_BASE_URL}auth/user/`, { credentials: 'include' })
       .then(res => {
@@ -44,17 +44,15 @@ function Friends() {
 
   const toggleDropdown = () => setIsDropdownOpen(!isDropdownOpen);
 
-
-  // Sample Suggested Friends data
+  // SAMPLE data updated to match "username" and "mutual_friends_count"
   const [suggestedFriends, setSuggestedFriends] = useState([
-    { id: 1, name: 'John Doe', mutual: '2 mutual friends' },
-    { id: 2, name: 'Alice Johnson', mutual: '4 mutual friends' },
-    { id: 3, name: 'Mark Williams', mutual: '1 mutual friend' },
+    { id: 1, username: 'John Doe', mutual_friends_count: 2 },
+    { id: 2, username: 'Alice Johnson', mutual_friends_count: 4 },
+    { id: 3, username: 'Mark Williams', mutual_friends_count: 1 },
   ]);
 
-  // Sample My Friends data
   const [myFriends, setMyFriends] = useState([
-    { id: 101, name: 'Bob Smith', mutual: '1 mutual friend' },
+    { id: 101, username: 'Bob Smith', mutual_friends_count: 1 },
   ]);
 
   // Handle tab change
@@ -72,8 +70,7 @@ function Friends() {
     try {
       await axios.post(`/api/friends/connect/${id}/`);
       showPopupMessage('Connection request sent');
-      // Refresh the suggested friends list
-      //fetchSuggestedFriends();
+      // If you have an actual backend endpoint, call fetchSuggestedFriends() here
     } catch (error) {
       console.error('Error connecting friend:', error);
     }
@@ -84,8 +81,7 @@ function Friends() {
     try {
       await axios.delete(`/api/friends/remove/${id}/`);
       showPopupMessage('Friend removed');
-      // Refresh the my friends list
-      //fetchMyFriends();
+      // If you have an actual backend endpoint, call fetchMyFriends() here
     } catch (error) {
       console.error('Error removing friend:', error);
     }
@@ -94,9 +90,8 @@ function Friends() {
   // Determine which list to display based on activeTab
   const displayedList = activeTab === 'suggested' ? suggestedFriends : myFriends;
 
-  // Filter by search term
+  // Filter by search term (using "username" now)
   const filteredList = displayedList.filter((friend) =>
-    // friend might have username, first_name, etc. Adjust to your data.
     friend.username.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -161,9 +156,7 @@ function Friends() {
                 <div className="subscription-item" key={friend.id}>
                   <div className="subscription-left">
                     <div className="subscription-text">
-                      {/* Adjust friend name display based on your user fields */}
                       <div className="subscription-name">{friend.username}</div>
-                      {/* If you have mutual_friends_count from the serializer */}
                       <div className="subscription-duration">
                         {friend.mutual_friends_count} mutual friends
                       </div>
