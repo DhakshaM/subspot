@@ -9,6 +9,7 @@ urlpatterns = [
     path("auth/signup/", auth.SignUp.as_view(), name="Signup"),
     path("auth/user/", auth.UserInfo.as_view(), name="UserInfo"),
     path("", dashboard_views.home, name="home"),
+    # path("dashboard/", dashboard_views.DashboardView.as_view(), name="dashboard"),
     path("subscriptions/", dashboard_views.SubscriptionsView.as_view(), name="subscriptions"),
     path('subscriptions/<int:subscription_id>/', dashboard_views.SubscriptionsView.as_view(), name='subscription_detail'),
     path("expenses/", dashboard_views.UserExpensesView.as_view(), name="expenses"),

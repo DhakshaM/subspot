@@ -11,7 +11,7 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
 from pathlib import Path
-
+import os
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -39,6 +39,10 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'corsheaders',
     'subspot',
+    'rest_framework',
+    'channels',
+    'chats',
+    'friends',
 ]
 
 MIDDLEWARE = [
@@ -59,7 +63,9 @@ ROOT_URLCONF = 'backend.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [
+            BASE_DIR / 'frontend_built',  
+        ],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -84,6 +90,8 @@ DATABASES = {
         'NAME': 'subspot_db',   # Change this to your database name
         'USER': 'root',      # Change this to your MySQL username
         'PASSWORD': 'Poku@2408',  # Change this to your MySQL password
+        'PASSWORD': 'password',  # Change this to your MySQL password
+        'PASSWORD': 'Pa%%w0rD',  # Change this to your MySQL password
         'HOST': 'localhost',  # Use the actual host if MySQL is running remotely
         'PORT': '3306',  # Default MySQL port
     }
@@ -126,6 +134,12 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
 
 STATIC_URL = 'static/'
+STATICFILES_DIRS = [
+    BASE_DIR / 'frontend_built' / 'static', 
+]
+
+MEDIA_ROOT = BASE_DIR / 'media'
+MEDIA_URL = '/media/'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
@@ -133,3 +147,13 @@ STATIC_URL = 'static/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 AUTH_USER_MODEL = 'subspot.User'
+ASGI_APPLICATION = 'backend.asgi.application'
+
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            'hosts': [('127.0.0.1', 6379)],
+        },
+    },
+}
