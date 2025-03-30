@@ -101,8 +101,8 @@
   gap: 15px;
   height: 45px;
   padding: 0 20px;
-  margin: 0 auto 20px auto;
-  width: 550px; /* Market toggle width */
+  margin: 20px auto;
+  max-width: 700px;
   box-sizing: border-box;
 }
 
@@ -110,7 +110,7 @@
   background-color: transparent;
   border: none;
   color: #FBFFFA;
-  padding: 5px 15px;
+  padding: 8px 20px;
   font-size: 16px;
   font-family: 'Siemreap', sans-serif;
   cursor: pointer;
@@ -134,7 +134,7 @@
    .subscription-toggle inside .friends-container
 */
 .friends-container .subscription-toggle {
-  width: 320px !important; /* narrower for Friends page */
+  width: 350px !important; /* narrower for Friends page */
 }
 
 /* Search Bar (only for Buy tab) */
@@ -348,15 +348,31 @@
   font-size: 16px;
 }
 
+/* ------------------ UPDATED BUTTON POSITIONING ------------------
+   Position the "Add to Sell" and "History" buttons on the left
+   within their flex container by overriding the default centering.
+-------------------------------------------------------------------- */
+.add-subscription-button,
+.sell-history-button {
+  align-self: flex-start;
+  margin-left: 20px;
+}
+
 /* Sell Form */
 .sell-form {
   display: flex;
   flex-direction: column;
   gap: 20px;
   width: 400px;
-  margin: 0 auto;
-  margin-top: 20px;
+  margin: 20px auto 0 auto;
   text-align: left;
+}
+
+/* Ensure both input and select fields in the sell form take full width.
+   This fixes the issue where the selling price input is narrower than the subscription select. */
+.sell-form .form-group input,
+.sell-form .form-group select {
+  width: 350px;
 }
 
 .form-group {
@@ -512,5 +528,3 @@
   80% { opacity: 1; }
   100% { opacity: 0; }
 }
-
-

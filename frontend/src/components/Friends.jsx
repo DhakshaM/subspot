@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import './Market.css';  
+import './Market.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCircleUser, faSearch } from '@fortawesome/free-solid-svg-icons';
 import { Link, useNavigate } from 'react-router-dom';
-import ChatIcon from './ChatIcon'; 
+import ChatIcon from './ChatIcon';
+import axios from 'axios';
 
 function Friends() {
   const [activeTab, setActiveTab] = useState('suggested');
@@ -15,7 +16,7 @@ function Friends() {
   const [userInfo, setUserInfo] = useState({ username: '', email: '' });
   const API_BASE_URL = 'http://localhost:8000/subspot/';
   
-  //user dropdown
+  // Fetch logged-in user info
   useEffect(() => {
     fetch(`${API_BASE_URL}auth/user/`, { credentials: 'include' })
       .then(res => {
@@ -43,23 +44,21 @@ function Friends() {
 
   const toggleDropdown = () => setIsDropdownOpen(!isDropdownOpen);
 
-
-  // Sample Suggested Friends data
+  // Sample data for demo purposes:
   const [suggestedFriends, setSuggestedFriends] = useState([
-    { id: 1, name: 'John Doe', mutual: '2 mutual friends' },
-    { id: 2, name: 'Alice Johnson', mutual: '4 mutual friends' },
-    { id: 3, name: 'Mark Williams', mutual: '1 mutual friend' },
+    { id: 1, username: 'John Doe', mutual_friends_count: 2 },
+    { id: 2, username: 'Alice Johnson', mutual_friends_count: 4 },
+    { id: 3, username: 'Mark Williams', mutual_friends_count: 1 },
   ]);
 
-  // Sample My Friends data
   const [myFriends, setMyFriends] = useState([
-    { id: 101, name: 'Bob Smith', mutual: '1 mutual friend' },
+    { id: 101, username: 'Bob Smith', mutual_friends_count: 1 },
   ]);
 
   // Handle tab change
   const handleTabChange = (tab) => setActiveTab(tab);
 
-  // Show pop-up message
+  // Show popup message
   const showPopupMessage = (message) => {
     setPopupMessage(message);
     setShowPopup(true);
@@ -67,24 +66,34 @@ function Friends() {
   };
 
   // Simulate sending connection request
-  const handleConnect = (id) => {
-    const friendToConnect = suggestedFriends.find((f) => f.id === id);
-    if (friendToConnect) {
+  const handleConnect = async (id) => {
+    try {
+      // Simulate API call (or use axios.post if needed)
       showPopupMessage('Connection request sent');
+      // Optionally, you might remove the connected friend from suggested list if needed:
+      // setSuggestedFriends(prev => prev.filter(friend => friend.id !== id));
+    } catch (error) {
+      console.error('Error connecting friend:', error);
     }
   };
 
-  // Remove friend from My Friends
-  const handleRemove = (id) => {
-    setMyFriends((prev) => prev.filter((f) => f.id !== id));
+  // Remove friend from My Friends list
+  const handleRemove = async (id) => {
+    try {
+      // Simulate API call (or use axios.delete if needed)
+      setMyFriends(prev => prev.filter(friend => friend.id !== id));
+      showPopupMessage('Friend removed');
+    } catch (error) {
+      console.error('Error removing friend:', error);
+    }
   };
 
   // Determine which list to display based on activeTab
   const displayedList = activeTab === 'suggested' ? suggestedFriends : myFriends;
 
   // Filter by search term
-  const filteredList = displayedList.filter((friend) =>
-    friend.name.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredList = displayedList.filter(friend =>
+    friend.username.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -105,7 +114,6 @@ function Friends() {
               </div>
             )}
           </div>
-          {/* ChatIcon added next to user icon */}
           <div style={{ marginLeft: '20px' }}>
             <ChatIcon />
           </div>
@@ -118,13 +126,13 @@ function Friends() {
         <div className="subscription-toggle" style={{ marginBottom: '20px' }}>
           <button
             className={`toggle-button ${activeTab === 'suggested' ? 'active' : ''}`}
-            onClick={() => handleTabChange('suggested')}
+            onClick={() => setActiveTab('suggested')}
           >
             Suggested Friends
           </button>
           <button
             className={`toggle-button ${activeTab === 'myFriends' ? 'active' : ''}`}
-            onClick={() => handleTabChange('myFriends')}
+            onClick={() => setActiveTab('myFriends')}
           >
             My Friends
           </button>
@@ -145,12 +153,14 @@ function Friends() {
         {activeTab === 'suggested' && (
           <div className="friends-list">
             {filteredList.length > 0 ? (
-              filteredList.map((friend) => (
+              filteredList.map(friend => (
                 <div className="subscription-item" key={friend.id}>
                   <div className="subscription-left">
                     <div className="subscription-text">
-                      <div className="subscription-name">{friend.name}</div>
-                      <div className="subscription-duration">{friend.mutual}</div>
+                      <div className="subscription-name">{friend.username}</div>
+                      <div className="subscription-duration">
+                        {friend.mutual_friends_count} mutual friends
+                      </div>
                     </div>
                   </div>
                   <div className="subscription-right">
@@ -172,7 +182,7 @@ function Friends() {
         {activeTab === 'myFriends' && (
           <div className="friends-list">
             {filteredList.length > 0 ? (
-              filteredList.map((friend) => (
+              filteredList.map(friend => (
                 <Link 
                   to={`/chat/${friend.id}`} 
                   key={friend.id}
@@ -181,15 +191,20 @@ function Friends() {
                   <div className="subscription-item">
                     <div className="subscription-left">
                       <div className="subscription-text">
-                        <div className="subscription-name">{friend.name}</div>
-                        <div className="subscription-duration">{friend.mutual}</div>
+                        <div className="subscription-name">{friend.username}</div>
+                        <div className="subscription-duration">
+                          {friend.mutual_friends_count} mutual friends
+                        </div>
                       </div>
                     </div>
                     <div className="subscription-right">
-                      <button className="action-button" onClick={(e) => { 
-                        e.preventDefault(); 
-                        handleRemove(friend.id);
-                      }}>
+                      <button
+                        className="action-button"
+                        onClick={(e) => { 
+                          e.preventDefault();
+                          handleRemove(friend.id);
+                        }}
+                      >
                         Remove
                       </button>
                     </div>
@@ -197,7 +212,7 @@ function Friends() {
                 </Link>
               ))
             ) : (
-              <p className="no-results-message">No search match found</p>
+              <p className="no-results-message">You have no friends</p>
             )}
           </div>
         )}

@@ -13,93 +13,93 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import './ChatListPage.css';
 
-const initialChats = [
-  { id: 1, name: 'Friend 1' },
-  { id: 2, name: 'Friend 2' },
-  { id: 3, name: 'Seller 1' },
-];
-
 const ChatListPage = () => {
-  const [chatList, setChatList] = useState(initialChats);
+  // Now we include both the value AND the setter
+  const [chatList, setChatList] = useState([
+    { id: 'Friend1', name: 'Friend1' },
+    { id: 'Friend2', name: 'Friend2' },
+    { id: 'Seller1', name: 'Seller1' },
+  ]);
+
   const [selectedChat, setSelectedChat] = useState(null);
 
-  // Each key is chatId -> array of messages
+  // Preload some messages for Friend1
   const [messages, setMessages] = useState({
-    1: [
-      { sender: 'theirs', text: 'Hello!', time: '10:00 AM', type: 'text' },
-      { sender: 'mine', text: 'Hi there!', time: '10:01 AM', type: 'text' },
+    Friend1: [
+      {
+        user: 'Friend1',
+        message: 'Hello!',
+        time: '10:00 AM',
+      },
+      {
+        user: 'Me',
+        message: 'Hi there!',
+        time: '10:01 AM',
+      },
     ],
-    2: [],
-    3: [],
   });
 
-  // Track typed message and the message being replied to
   const [typedMessage, setTypedMessage] = useState('');
   const [replyMsg, setReplyMsg] = useState(null);
-
-  // For file uploads
   const fileInputRef = useRef(null);
 
-  // Image/PDF modals
+  // Modals / popups
   const [modalImage, setModalImage] = useState(null);
   const [pdfModal, setPdfModal] = useState({ open: false, src: '', fileName: '' });
-
-  // Header 3-dot menu (Clear/Delete chat)
-  const [menuOpen, setMenuOpen] = useState(false);
-  const menuRef = useRef(null);
-
-  // Per-message options
-  const [openMsgOptions, setOpenMsgOptions] = useState(null);
-
-  // Delete popup modal
   const [deletePopup, setDeletePopup] = useState({ open: false, msgIndex: null });
-
-  // For closing message-level dropdown if user clicks outside
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [openMsgOptions, setOpenMsgOptions] = useState(null);
+  const menuRef = useRef(null);
   const msgOptionsRef = useRef(null);
 
-  // Helper to get a simple time stamp
-  const getTimeStamp = () => {
-    return new Date().toLocaleTimeString([], {
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
+  // WebSocket for the current friend
+  const [socket, setSocket] = useState(null);
 
-  // Select a chat
-  const handleSelectChat = (chatId) => {
-    setSelectedChat(chatId);
-    setTypedMessage('');
-    setMenuOpen(false);
-    setReplyMsg(null);
-    setOpenMsgOptions(null);
-  };
+  const getTimeStamp = () =>
+    new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-  // Determine the display name if replying to a "theirs" message
-  const getReplySenderName = (sender) => {
-    if (sender === 'mine') return 'You';
-    // If it's 'theirs', get the chat's name
-    const chatObj = chatList.find((chat) => chat.id === selectedChat);
-    return chatObj ? chatObj.name : 'Other';
-  };
+  // Open WebSocket whenever selectedChat changes
+  useEffect(() => {
+    if (!selectedChat) return;
 
-  // Send message
-  const handleSend = () => {
-    if (!typedMessage.trim() || !selectedChat) return;
-    const timeStamp = getTimeStamp();
+    const ws = new WebSocket(`ws://127.0.0.1:8000/ws/chat/${selectedChat}/`);
 
-    // Build the new message object
-    const newMessage = {
-      sender: 'mine',
-      text: typedMessage,
-      time: timeStamp,
-      type: 'text',
+    ws.onopen = () => {
+      console.log('WebSocket connected for room:', selectedChat);
     };
 
-    // If replying, store reference to the original message
+    ws.onmessage = (e) => {
+      const data = JSON.parse(e.data);
+      if (data.message) {
+        setMessages((prev) => ({
+          ...prev,
+          [selectedChat]: [...(prev[selectedChat] || []), data],
+        }));
+      }
+    };
+
+    ws.onerror = (err) => console.error('WebSocket error:', err);
+    ws.onclose = (e) => console.warn('WebSocket closed:', e);
+
+    setSocket(ws);
+
+    return () => ws.close();
+  }, [selectedChat]);
+
+  // Send a message
+  const handleSend = () => {
+    if (!socket || !typedMessage.trim() || !selectedChat) return;
+
+    const newMessage = {
+      user: 'Me',
+      message: typedMessage,
+      time: getTimeStamp(),
+    };
+
     if (replyMsg) {
       newMessage.replyTo = {
-        sender: replyMsg.sender,
-        text: replyMsg.text,
+        user: replyMsg.user || 'Them',
+        message: replyMsg.message,
       };
     }
 
@@ -108,38 +108,32 @@ const ChatListPage = () => {
       [selectedChat]: [...(prev[selectedChat] || []), newMessage],
     }));
 
+    socket.send(JSON.stringify({ message: typedMessage }));
     setTypedMessage('');
     setReplyMsg(null);
   };
 
-  // Handle upload click
+  // File upload
   const handleUploadClick = () => {
     if (!selectedChat) return;
     fileInputRef.current?.click();
   };
 
-  // Handle file selection
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (!file || !selectedChat) return;
 
-    const timeStamp = getTimeStamp();
     const fileName = file.name;
     const fileType = file.type.toLowerCase();
-
+    const timeStamp = getTimeStamp();
     const reader = new FileReader();
+
     reader.onload = () => {
-      let newMsg = {
-        sender: 'mine',
-        time: timeStamp,
-      };
+      let newMsg = { user: 'Me', time: timeStamp };
       if (fileType.startsWith('image/')) {
         newMsg.type = 'image';
         newMsg.src = reader.result;
-      } else if (
-        fileType === 'application/pdf' ||
-        fileName.toLowerCase().endsWith('.pdf')
-      ) {
+      } else if (fileType === 'application/pdf' || fileName.toLowerCase().endsWith('.pdf')) {
         newMsg.type = 'pdf';
         newMsg.src = reader.result;
         newMsg.fileName = fileName;
@@ -157,65 +151,34 @@ const ChatListPage = () => {
     e.target.value = '';
   };
 
-  // Image modal
+  // Image/PDF modals
   const openImageModal = (src) => setModalImage(src);
   const closeImageModal = () => setModalImage(null);
-
-  // PDF modal
   const openPdfModal = (src, fileName) => setPdfModal({ open: true, src, fileName });
   const closePdfModal = () => setPdfModal({ open: false, src: '', fileName: '' });
 
-  // Clear chat
-  const handleClearChat = () => {
-    if (!selectedChat) return;
-    setMessages((prev) => ({ ...prev, [selectedChat]: [] }));
-    setMenuOpen(false);
-  };
-
-  // Delete entire chat
-  const handleDeleteChat = () => {
-    if (!selectedChat) return;
-    setChatList((prev) => prev.filter((chat) => chat.id !== selectedChat));
-    setMessages((prev) => {
-      const newMsgs = { ...prev };
-      delete newMsgs[selectedChat];
-      return newMsgs;
-    });
-    setSelectedChat(null);
-    setMenuOpen(false);
-  };
-
-  // Toggle header menu
+  // Header menu
   const toggleMenu = () => setMenuOpen((prev) => !prev);
 
-  // Toggle message options
-  const toggleMsgOptions = (index) => {
+  // Message options
+  const toggleMsgOptions = (index) =>
     setOpenMsgOptions((prev) => (prev === index ? null : index));
-  };
 
-  // Open delete confirmation for a message
-  const openDeletePopup = (index) => {
-    setDeletePopup({ open: true, msgIndex: index });
-  };
+  const openDeletePopup = (index) => setDeletePopup({ open: true, msgIndex: index });
+  const handleDeletePopupClose = () => setDeletePopup({ open: false, msgIndex: null });
 
-  /**
-   * handleDeleteMessage:
-   * - If deleteForAll = false => remove the message entirely (Delete for me).
-   * - If deleteForAll = true  => transform the message to a 'deleted' type (Delete for all).
-   */
+  // Delete or reply
   const handleDeleteMessage = (chatId, msgIndex, deleteForAll = false) => {
     setMessages((prev) => {
       const updated = [...(prev[chatId] || [])];
       if (!deleteForAll) {
-        // Delete for me => remove the message from array
         updated.splice(msgIndex, 1);
       } else {
-        // Delete for all => keep bubble, show "You deleted this message"
         const originalMsg = updated[msgIndex];
         updated[msgIndex] = {
           ...originalMsg,
           type: 'deleted',
-          text: 'You deleted this message',
+          message: 'You deleted this message',
           replyTo: undefined,
           src: undefined,
           fileName: undefined,
@@ -227,20 +190,17 @@ const ChatListPage = () => {
     setOpenMsgOptions(null);
   };
 
-  // Set the message we are replying to
   const handleReplyMessage = (msg) => {
     setReplyMsg(msg);
     setOpenMsgOptions(null);
   };
 
-  // Close 3-dot header menu or message dropdown if clicking outside
+  // Close dropdowns if clicking outside
   useEffect(() => {
     const handleClickOutside = (e) => {
-      // If not clicking inside the header menu
       if (menuRef.current && !menuRef.current.contains(e.target)) {
         setMenuOpen(false);
       }
-      // If not clicking inside .chat-messages or specifically inside the .msg-options-container
       if (msgOptionsRef.current && !msgOptionsRef.current.contains(e.target)) {
         setOpenMsgOptions(null);
       }
@@ -261,31 +221,25 @@ const ChatListPage = () => {
             <h2 className="chats-title">Chat</h2>
           </header>
 
-          <ul className="chat-list">
+          <ul className="chat-list" style={{ textAlign: 'center' }}>
             {chatList.map((chat) => (
               <li
                 key={chat.id}
                 className={`chat-item ${selectedChat === chat.id ? 'active' : ''}`}
-                onClick={() => handleSelectChat(chat.id)}
+                onClick={() => setSelectedChat(chat.id)}
               >
-                {chat.name}
+                <span className="chat-link">{chat.name}</span>
               </li>
             ))}
           </ul>
         </div>
 
         {/* Right Panel */}
-        {/* 
-          Conditionally add "doodle" class if a chat is selected 
-          => doodle background shows only if selectedChat != null
-        */}
-        <div className={selectedChat ? "chats-right-panel doodle" : "chats-right-panel"}>
+        <div className={selectedChat ? 'chats-right-panel doodle' : 'chats-right-panel'}>
           {selectedChat ? (
             <div className="chat-content">
               <header className="chats-right-header">
-                <span className="chat-contact-name">
-                  {chatList.find((chat) => chat.id === selectedChat)?.name}
-                </span>
+                <span className="chat-contact-name">{selectedChat}</span>
                 <div className="chat-header-actions" ref={menuRef}>
                   <FontAwesomeIcon
                     icon={faEllipsisV}
@@ -294,10 +248,29 @@ const ChatListPage = () => {
                   />
                   {menuOpen && (
                     <div className="chat-menu-dropdown">
-                      <div className="dropdown-item" onClick={handleClearChat}>
+                      <div
+                        className="dropdown-item"
+                        onClick={() => {
+                          setMessages((prev) => ({ ...prev, [selectedChat]: [] }));
+                          setMenuOpen(false);
+                        }}
+                      >
                         Clear Chat
                       </div>
-                      <div className="dropdown-item" onClick={handleDeleteChat}>
+                      <div
+                        className="dropdown-item"
+                        onClick={() => {
+                          // Remove friend from chatList and messages
+                          setChatList((prev) => prev.filter((c) => c.id !== selectedChat));
+                          setMessages((prev) => {
+                            const newMsgs = { ...prev };
+                            delete newMsgs[selectedChat];
+                            return newMsgs;
+                          });
+                          setSelectedChat(null);
+                          setMenuOpen(false);
+                        }}
+                      >
                         Delete Chat
                       </div>
                     </div>
@@ -306,205 +279,126 @@ const ChatListPage = () => {
               </header>
 
               <div className="chat-messages" ref={msgOptionsRef}>
-                {messages[selectedChat]?.map((msg, index) => {
-                  const isMine = msg.sender === 'mine';
+                {(messages[selectedChat] || []).map((msg, index) => {
+                  const isMine = msg.user === 'Me';
                   return (
-                    <div
-                      key={index}
-                      className={`message-wrapper ${isMine ? 'mine' : 'theirs'}`}
-                    >
-                      {isMine ? (
-                        <>
-                          {/* 3-dots on left, bubble on right */}
-                          <div className="msg-options-container" onClick={(e) => e.stopPropagation()}>
-                            <FontAwesomeIcon
-                              icon={faEllipsisH}
-                              className="msg-options-icon"
-                              onClick={() => toggleMsgOptions(index)}
+                    <div key={index} className={`message-wrapper ${isMine ? 'mine' : 'theirs'}`}>
+                      {isMine && (
+                        <div className="msg-options-container" onClick={(e) => e.stopPropagation()}>
+                          <FontAwesomeIcon
+                            icon={faEllipsisH}
+                            className="msg-options-icon"
+                            onClick={() => toggleMsgOptions(index)}
+                          />
+                          {openMsgOptions === index && (
+                            <div
+                              className="msg-options-dropdown"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <div className="msg-option-item" onClick={() => handleReplyMessage(msg)}>
+                                Reply
+                              </div>
+                              <div className="msg-option-item" onClick={() => openDeletePopup(index)}>
+                                Delete
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      <div className={`message-bubble ${isMine ? 'mine' : 'theirs'}`}>
+                        {msg.replyTo && (
+                          <div className="mini-reply-bubble">
+                            <span className="mini-reply-sender">{msg.replyTo.user}</span>
+                            <span className="mini-reply-text">{msg.replyTo.message}</span>
+                          </div>
+                        )}
+
+                        {msg.type === 'deleted' ? (
+                          <>
+                            <div className="message-text deleted">
+                              <FontAwesomeIcon icon={faBan} className="deleted-icon" />
+                              {msg.message}
+                            </div>
+                            <div className="message-time">{msg.time}</div>
+                          </>
+                        ) : msg.type === 'image' ? (
+                          <>
+                            <img
+                              src={msg.src}
+                              alt="sent"
+                              className="message-image"
+                              onClick={() => openImageModal(msg.src)}
                             />
-                            {openMsgOptions === index && (
-                              <div className="msg-options-dropdown" onClick={(e) => e.stopPropagation()}>
-                                <div
-                                  className="msg-option-item"
-                                  onClick={() => handleReplyMessage(msg)}
-                                >
-                                  Reply
-                                </div>
-                                <div
-                                  className="msg-option-item"
-                                  onClick={() => openDeletePopup(index)}
-                                >
-                                  Delete
-                                </div>
-                              </div>
-                            )}
-                          </div>
+                            <div className="message-time">{msg.time}</div>
+                          </>
+                        ) : msg.type === 'pdf' ? (
+                          <>
+                            <div
+                              className="pdf-preview"
+                              onClick={() => openPdfModal(msg.src, msg.fileName)}
+                            >
+                              <FontAwesomeIcon icon={faFilePdf} className="pdf-icon" />
+                              <span className="pdf-filename">{msg.fileName}</span>
+                            </div>
+                            <div className="message-time">{msg.time}</div>
+                          </>
+                        ) : msg.type === 'file' ? (
+                          <>
+                            <a
+                              href={msg.src}
+                              download={msg.fileName}
+                              className="file-link"
+                              title="Download File"
+                            >
+                              {msg.fileName}
+                            </a>
+                            <div className="message-time">{msg.time}</div>
+                          </>
+                        ) : (
+                          <>
+                            <div className="message-text">{msg.message}</div>
+                            <div className="message-time">{msg.time}</div>
+                          </>
+                        )}
+                      </div>
 
-                          <div className={`message-bubble ${msg.sender}`}>
-                            {/* Show replied message if any */}
-                            {msg.replyTo && (
-                              <div className="mini-reply-bubble">
-                                <span className="mini-reply-sender">
-                                  {msg.replyTo.sender === 'mine'
-                                    ? 'You'
-                                    : getReplySenderName('theirs')}
-                                </span>
-                                <span className="mini-reply-text">{msg.replyTo.text}</span>
+                      {!isMine && (
+                        <div className="msg-options-container" onClick={(e) => e.stopPropagation()}>
+                          <FontAwesomeIcon
+                            icon={faEllipsisH}
+                            className="msg-options-icon"
+                            onClick={() => toggleMsgOptions(index)}
+                          />
+                          {openMsgOptions === index && (
+                            <div
+                              className="msg-options-dropdown"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <div className="msg-option-item" onClick={() => handleReplyMessage(msg)}>
+                                Reply
                               </div>
-                            )}
-
-                            {/* If the message is "deleted for all", check msg.type === 'deleted' */}
-                            {msg.type === 'deleted' ? (
-                              <>
-                                <div className="message-text deleted">
-                                  <FontAwesomeIcon icon={faBan} className="deleted-icon" />
-                                  You deleted this message
-                                </div>
-                                <div className="message-time">{msg.time}</div>
-                              </>
-                            ) : msg.type === 'text' ? (
-                              <>
-                                <div className="message-text">{msg.text}</div>
-                                <div className="message-time">{msg.time}</div>
-                              </>
-                            ) : msg.type === 'image' ? (
-                              <>
-                                <img
-                                  src={msg.src}
-                                  alt="sent"
-                                  className="message-image"
-                                  onClick={() => openImageModal(msg.src)}
-                                />
-                                <div className="message-time">{msg.time}</div>
-                              </>
-                            ) : msg.type === 'pdf' ? (
-                              <>
-                                <div
-                                  className="pdf-preview"
-                                  onClick={() => openPdfModal(msg.src, msg.fileName)}
-                                >
-                                  <FontAwesomeIcon icon={faFilePdf} className="pdf-icon" />
-                                  <span className="pdf-filename">{msg.fileName}</span>
-                                </div>
-                                <div className="message-time">{msg.time}</div>
-                              </>
-                            ) : msg.type === 'file' ? (
-                              <>
-                                <a
-                                  href={msg.src}
-                                  download={msg.fileName}
-                                  className="file-link"
-                                  title="Download File"
-                                >
-                                  {msg.fileName}
-                                </a>
-                                <div className="message-time">{msg.time}</div>
-                              </>
-                            ) : null}
-                          </div>
-                        </>
-                      ) : (
-                        <>
-                          {/* For 'theirs', bubble first, dots on right */}
-                          <div className={`message-bubble ${msg.sender}`}>
-                            {msg.replyTo && (
-                              <div className="mini-reply-bubble">
-                                <span className="mini-reply-sender">
-                                  {msg.replyTo.sender === 'mine'
-                                    ? 'You'
-                                    : getReplySenderName('theirs')}
-                                </span>
-                                <span className="mini-reply-text">{msg.replyTo.text}</span>
+                              <div className="msg-option-item" onClick={() => openDeletePopup(index)}>
+                                Delete
                               </div>
-                            )}
-
-                            {msg.type === 'deleted' ? (
-                              <>
-                                <div className="message-text">{msg.text}</div>
-                                <div className="message-time">{msg.time}</div>
-                              </>
-                            ) : msg.type === 'text' ? (
-                              <>
-                                <div className="message-text">{msg.text}</div>
-                                <div className="message-time">{msg.time}</div>
-                              </>
-                            ) : msg.type === 'image' ? (
-                              <>
-                                <img
-                                  src={msg.src}
-                                  alt="sent"
-                                  className="message-image"
-                                  onClick={() => openImageModal(msg.src)}
-                                />
-                                <div className="message-time">{msg.time}</div>
-                              </>
-                            ) : msg.type === 'pdf' ? (
-                              <>
-                                <div
-                                  className="pdf-preview"
-                                  onClick={() => openPdfModal(msg.src, msg.fileName)}
-                                >
-                                  <FontAwesomeIcon icon={faFilePdf} className="pdf-icon" />
-                                  <span className="pdf-filename">{msg.fileName}</span>
-                                </div>
-                                <div className="message-time">{msg.time}</div>
-                              </>
-                            ) : msg.type === 'file' ? (
-                              <>
-                                <a
-                                  href={msg.src}
-                                  download={msg.fileName}
-                                  className="file-link"
-                                  title="Download File"
-                                >
-                                  {msg.fileName}
-                                </a>
-                                <div className="message-time">{msg.time}</div>
-                              </>
-                            ) : null}
-                          </div>
-
-                          <div className="msg-options-container" onClick={(e) => e.stopPropagation()}>
-                            <FontAwesomeIcon
-                              icon={faEllipsisH}
-                              className="msg-options-icon"
-                              onClick={() => toggleMsgOptions(index)}
-                            />
-                            {openMsgOptions === index && (
-                              <div className="msg-options-dropdown" onClick={(e) => e.stopPropagation()}>
-                                <div
-                                  className="msg-option-item"
-                                  onClick={() => handleReplyMessage(msg)}
-                                >
-                                  Reply
-                                </div>
-                                <div
-                                  className="msg-option-item"
-                                  onClick={() => openDeletePopup(index)}
-                                >
-                                  Delete
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        </>
+                            </div>
+                          )}
+                        </div>
                       )}
                     </div>
                   );
                 })}
               </div>
 
-              {/* If user is replying, show a bubble above input */}
               {replyMsg && (
                 <div className="reply-bubble">
-                  <span className="reply-text">{replyMsg.text}</span>
+                  <span className="reply-text">{replyMsg.message}</span>
                   <span className="cancel-reply" onClick={() => setReplyMsg(null)}>
                     &times;
                   </span>
                 </div>
               )}
 
-              {/* Message input area */}
               <div className="chats-input-area">
                 <input
                   type="text"
@@ -515,11 +409,7 @@ const ChatListPage = () => {
                     if (e.key === 'Enter') handleSend();
                   }}
                 />
-                <FontAwesomeIcon
-                  icon={faPaperPlane}
-                  className="send-icon"
-                  onClick={handleSend}
-                />
+                <FontAwesomeIcon icon={faPaperPlane} className="send-icon" onClick={handleSend} />
                 <input
                   type="file"
                   accept="image/*,.pdf,.doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
@@ -527,42 +417,29 @@ const ChatListPage = () => {
                   style={{ display: 'none' }}
                   onChange={handleFileChange}
                 />
-                <FontAwesomeIcon
-                  icon={faPaperclip}
-                  className="upload-icon"
-                  onClick={handleUploadClick}
-                />
+                <FontAwesomeIcon icon={faPaperclip} className="upload-icon" onClick={handleUploadClick} />
               </div>
             </div>
           ) : (
-            /* If no chat selected => doodle won't appear */
             <div className="chat-placeholder">Start Messaging</div>
           )}
         </div>
       </div>
 
-      {/* Delete Popup Modal */}
       {deletePopup.open && (
-        <div
-          className="delete-popup-modal"
-          onClick={() => setDeletePopup({ open: false, msgIndex: null })}
-        >
+        <div className="delete-popup-modal" onClick={handleDeletePopupClose}>
           <div className="delete-popup-content" onClick={(e) => e.stopPropagation()}>
             <p>Delete message:</p>
             <div className="delete-popup-options">
               <span
                 className="delete-option"
-                onClick={() =>
-                  handleDeleteMessage(selectedChat, deletePopup.msgIndex, false)
-                }
+                onClick={() => handleDeleteMessage(selectedChat, deletePopup.msgIndex, false)}
               >
                 Delete for me
               </span>
               <span
                 className="delete-option"
-                onClick={() =>
-                  handleDeleteMessage(selectedChat, deletePopup.msgIndex, true)
-                }
+                onClick={() => handleDeleteMessage(selectedChat, deletePopup.msgIndex, true)}
               >
                 Delete for all
               </span>
@@ -571,7 +448,6 @@ const ChatListPage = () => {
         </div>
       )}
 
-      {/* Image Modal */}
       {modalImage && (
         <div className="image-modal" onClick={closeImageModal}>
           <div className="image-modal-content" onClick={(e) => e.stopPropagation()}>
@@ -586,7 +462,6 @@ const ChatListPage = () => {
         </div>
       )}
 
-      {/* PDF Modal */}
       {pdfModal.open && (
         <div className="pdf-modal" onClick={closePdfModal}>
           <div className="pdf-modal-content" onClick={(e) => e.stopPropagation()}>

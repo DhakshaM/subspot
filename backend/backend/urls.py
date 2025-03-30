@@ -20,11 +20,16 @@ URL configuration for backend project.
 The `urlpatterns` list routes URLs to views.
 """
 from django.contrib import admin
-from django.urls import path, include
+from django.urls import path, include, re_path
 from django.conf import settings
 from django.conf.urls.static import static
+from .views import index
 
 urlpatterns = [
+    path('', index, name='index'),  
     path('subspot/', include('subspot.urls')),
     path('admin/', admin.site.urls),
+    path('api/chats', include('chats.urls')),
+    # path('api/friends/', include('friends.urls')), 
+    # re_path(r'^.*$', index, name='catchall'),  
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

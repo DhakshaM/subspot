@@ -1,6 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 from dateutil.relativedelta import relativedelta
+from django.db.models import Q, Case, When, IntegerField
 
 class User(AbstractUser):
     name = models.CharField(max_length=100,blank=True)
@@ -52,16 +53,57 @@ class Listing(models.Model):
     def __str__(self):
         return f"{self.id} - Listing for {self.subscription.service_name} - {'Sold' if self.is_sold else 'Available'}"
 
+
+# direction of friendship is not important - can be initiated by either user
 class FriendConnection(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="friends")
-    friend = models.ForeignKey(User, on_delete=models.CASCADE, related_name="friendships")
+    to_user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="received_friendship")
+    from_user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="initiated_friendship")
     status = models.CharField(max_length=50, choices=[("pending", "Pending"), ("accepted", "Accepted"), ("rejected", "Rejected")], default="pending")
 
     class Meta:
-        unique_together = ('user', 'friend')  
+        unique_together = ('to_user', 'from_user') 
+
+    def save(self, *args, **kwargs):
+        # check for reverse connections
+        existing = FriendConnection.objects.filter(
+            Q(from_user=self.to_user, to_user=self.from_user)
+        ).first()
+        
+        if existing:
+            existing.status = self.status
+            existing.save()
+            return
+        
+        super().save(*args, **kwargs)   
 
     def __str__(self):
-        return f"{self.id} {self.user.username} has friended {self.friend.username} ({self.status})"
+        return f"{self.id} {self.from_user.username} - {self.to_user.username} ({self.status})"
+    
+    @classmethod
+    def get_friendship(cls, user1, user2):
+        return cls.objects.filter(
+            (Q(from_user=user1, to_user=user2) | Q(from_user=user2, to_user=user1))
+        ).first()
+    
+    @classmethod
+    def are_friends(cls, user1, user2):
+        return cls.objects.filter(
+            (Q(from_user=user1, to_user=user2) | Q(from_user=user2, to_user=user1)),
+            status="accepted"
+        ).exists()
+    
+    @classmethod
+    def get_friend_ids(cls, user):
+        return cls.objects.filter(
+            (Q(from_user=user) | Q(to_user=user)),
+            status="accepted"
+        ).annotate(
+            friend_id=Case(
+                When(from_user=user, then='to_user_id'),
+                When(to_user=user, then='from_user_id'),
+                output_field=IntegerField()
+            )
+        ).values_list('friend_id', flat=True)
     
 
 class MonthlyExpense(models.Model):

@@ -6,22 +6,22 @@ import { Link, useNavigate } from 'react-router-dom';
 import ChatIcon from './ChatIcon'; 
 
 
-function parseDurationToDays(durationStr) {
-  switch (durationStr) {
-    case '1 month':
-      return 30;
-    case '2 months':
-      return 60;
-    case '3 months':
-      return 90;
-    case '6 months':
-      return 180;
-    case '1 year':
-      return 365;
-    default:
-      return 30; 
-  }
-}
+// function parseDurationToDays(durationStr) {
+//   switch (durationStr) {
+//     case '1 month':
+//       return 30;
+//     case '2 months':
+//       return 60;
+//     case '3 months':
+//       return 90;
+//     case '6 months':
+//       return 180;
+//     case '1 year':
+//       return 365;
+//     default:
+//       return 30; 
+//   }
+// }
 
 function Market() {
   // Track which tab is active: "buy", "sell", or "expired"

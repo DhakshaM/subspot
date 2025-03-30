@@ -11,6 +11,11 @@ from ..models import Subscription, MonthlyExpense, User
 def home(request):
     return HttpResponse("Welcome to the Homepage!")
 
+# class DashboardView(LoginRequiredMixin, View):
+#     def get(self, request):
+#         # You can render a template instead of returning plain text.
+#         return HttpResponse("This is the Dashboard page.")
+
 # views for dashboard page
 
 @method_decorator(csrf_exempt, name='dispatch')
