@@ -93,7 +93,7 @@ class PredictionView(View):
     def post(self, request):
         try:
             data = json.loads(request.body)
-            user = data.get("username")
+            user = request.user
             service_name = data.get("service_name") 
             viewing_hours = data.get("viewing_hours_bucket")
             avg_viewing_duration = data.get("avg_viewing_duration_bucket")
@@ -101,21 +101,47 @@ class PredictionView(View):
             support_tickets = data.get("support_tickets_bucket")
             user_rating = data.get("user_rating_bucket")
             parental_control = data.get("parental_control")
+            print('user', user)
+            print('here')
             # Validate input
             if None in [service_name, viewing_hours, avg_viewing_duration, content_downloads, 
                         support_tickets, user_rating, parental_control]:
                 return JsonResponse({"error": "Missing required fields"}, status=400)
 
+            print('here1')
+                # userid = User.objects.get(name=user)
+                # print('fetched 1')
+                # subscription = Subscription.objects.get(service_name=service_name, owner=userid)
+                # billing_cycle = subscription.billing_cycle
+                # amount = float(subscription.amount)
+                # start_date = subscription.start_date
 
-            try:
-                userid = User.objects.get(name=user)
-                subscription = Subscription.objects.get(service_name=service_name, owner=userid)
+            # try:
+            #     user = User.objects.get(name=user)
+            #     print('Fetched User')
+            # except User.DoesNotExist:
+            #     print(f"No user found with name: {user}")
+            #     return JsonResponse({"error": 'No user found with name'}, status=400)
+
+            # Fetch the subscription for the given service and owner (user)
+            subscriptions = Subscription.objects.filter(service_name=service_name, owner=user.id)
+
+            if subscriptions.exists():
+                subscription = subscriptions.first()  # Get the first one if there are multiple, or handle accordingly
                 billing_cycle = subscription.billing_cycle
                 amount = float(subscription.amount)
                 start_date = subscription.start_date
-            except Subscription.DoesNotExist:
-                return JsonResponse({"error": "Subscription not found for this user"}, status=404)
+                print(f"Subscription found: {subscription}")
+            else:
+                print(f"No subscription found for service '{service_name}' and user '{user.name}'")
+                return JsonResponse({"error": f'No subscription found for service {service_name} and user {user.name}'}, status=400)
 
+                # Handle the error, maybe return or exi
+
+
+            # except Subscription.DoesNotExist:
+            #     return JsonResponse({"error": "Subscription not found for this user"}, status=404)
+            print('here2')
             # Convert billing cycle to monthly charges
             if billing_cycle == Subscription.BillingCycle.MONTHLY:
                 monthly_charges = amount
@@ -125,7 +151,6 @@ class PredictionView(View):
                 monthly_charges = amount / 12  # Divide yearly amount by 12
             else:
                 return JsonResponse({"error": "Invalid billing cycle"}, status=400)
-
             # Calculate account age (months)
             today = date.today()
             account_age_months = (today.year - start_date.year) * 12 + (today.month - start_date.month)
