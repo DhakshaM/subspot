@@ -19,7 +19,6 @@ function SubscriptionDetails() {
     user_rating_bucket: '',
     parental_control: '',
   });
-
   const [predictionResult, setPredictionResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -28,7 +27,7 @@ function SubscriptionDetails() {
     fetch(`${API_BASE_URL}auth/user/`, { credentials: 'include' })
       .then((res) => {
         if (res.status === 401) {
-          navigate('/'); 
+          navigate('/');
           return;
         }
         return res.json();
@@ -50,21 +49,17 @@ function SubscriptionDetails() {
       setError('User information not loaded. Please try again.');
       return;
     }
-
     if (Object.values(formData).includes('')) {
       setError('Please select all options before submitting.');
       return;
     }
-
     setError(null);
     setLoading(true);
-
     const requestData = {
       service_name: subscription.name,
       username: userInfo.username,
       ...formData,
     };
-
     try {
       const response = await fetch(`${API_BASE_URL}prediction/`, {
         method: 'POST',
@@ -72,10 +67,8 @@ function SubscriptionDetails() {
         credentials: 'include',
         body: JSON.stringify(requestData),
       });
-
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Something went wrong');
-
       setPredictionResult(data.prediction);
     } catch (error) {
       setError(error.message);
@@ -89,51 +82,46 @@ function SubscriptionDetails() {
   }
 
   return (
-    <div className="subscription-details">
-      <h2>Subscription Details</h2>
-      <p><strong>Name:</strong> {subscription.name}</p>
-      <p><strong>Cost:</strong> Rs. {subscription.cost}</p>
-{/* 
-      {userInfo && (
-        <>
-          <h3>User Info</h3>
-          <p><strong>Username:</strong> {userInfo.username}</p>
-          <p><strong>Email:</strong> {userInfo.email}</p>
-        </>
-      )} */}
-
-      <h3>Choose Buckets</h3>
-      {[
-        { label: 'Viewing Hours', name: 'viewing_hours_bucket', options: ['Low', 'Medium', 'High', 'Very High'] },
-        { label: 'Average Viewing Duration', name: 'avg_viewing_duration_bucket', options: ['Short', 'Moderate', 'Long', 'Very Long'] },
-        { label: 'Content Downloads Per Month', name: 'content_downloads_bucket', options: ['Rare', 'Intermediate', 'Frequent', 'Very Frequent'] },
-        { label: 'Support Tickets Per Month', name: 'support_tickets_bucket', options: ['Low', 'Moderate', 'High', 'Very High'] },
-        { label: 'Rating', name: 'user_rating_bucket', options: ['Poor', 'Average', 'Good', 'Excellent'] },
-        { label: 'Parental Control', name: 'parental_control', options: ['Yes', 'No'] },
-      ].map(({ label, name, options }) => (
-        <div key={name}>
-          <label>{label}:</label>
-          <select name={name} onChange={handleChange} value={formData[name]}>
-            <option value="">Select</option>
-            {options.map((opt) => (
-              <option key={opt} value={opt}>{opt}</option>
-            ))}
-          </select>
-        </div>
-      ))}
-
-      <button onClick={handleSubmit} disabled={loading}>
-        {loading ? 'Predicting...' : 'Submit'}
-      </button>
-
-      {error && <p className="error">{error}</p>}
-
-      {predictionResult && (
-        <div className="prediction-box">
-          <h3>Prediction Result</h3>
-          <p>{predictionResult}</p>
-        </div>
-      )}
+    <div className="subscription-details-container">
+      <div className="subscription-details">
+        <h2>Subscription Details</h2>
+        <p><strong>Name:</strong> {subscription.name}</p>
+        <p><strong>Cost:</strong> Rs. {subscription.cost}</p>
+        <h3>Choose Buckets</h3>
+        {[
+          { label: 'Viewing Hours', name: 'viewing_hours_bucket', options: ['Low', 'Medium', 'High', 'Very High'] },
+          { label: 'Average Viewing Duration', name: 'avg_viewing_duration_bucket', options: ['Short', 'Moderate', 'Long', 'Very Long'] },
+          { label: 'Content Downloads Per Month', name: 'content_downloads_bucket', options: ['Rare', 'Intermediate', 'Frequent', 'Very Frequent'] },
+          { label: 'Support Tickets Per Month', name: 'support_tickets_bucket', options: ['Low', 'Moderate', 'High', 'Very High'] },
+          { label: 'Rating', name: 'user_rating_bucket', options: ['Poor', 'Average', 'Good', 'Excellent'] },
+          { label: 'Parental Control', name: 'parental_control', options: ['Yes', 'No'] },
+        ].map(({ label, name, options }) => (
+          <div key={name}>
+            <label>{label}:</label>
+            <select name={name} onChange={handleChange} value={formData[name]}>
+              <option value="">Select</option>
+              {options.map((opt) => (
+                <option key={opt} value={opt}>{opt}</option>
+              ))}
+            </select>
+          </div>
+        ))}
+        <button onClick={handleSubmit} disabled={loading}>
+          {loading ? 'Predicting...' : 'Submit'}
+        </button>
+        {error && <p className="error">{error}</p>}
+        {predictionResult && (
+          <div className="prediction-box">
+            <h3>Prediction Result</h3>
+            <p>{predictionResult}</p>
+          </div>
+        )}
+      </div>
+      {/* Additional background gradient elements */}
+      <div className="bottom-left-ellipse"></div>
+      <div className="bottom-right-ellipse"></div>
+      <div className="bottom-center-ellipse"></div>
+      <div className="bottom-right-red-ellipse"></div>
     </div>
   );
 }

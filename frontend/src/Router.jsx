@@ -5,7 +5,7 @@ import Market from './components/Market';
 import SubscriptionDetails from './components/SubscriptionDetails'; 
 import Friends from './components/Friends';
 import ChatListPage from './components/ChatListPage';
-// import ChatRoom from './components/ChatRoom';
+import AddSubscription from './components/AddSubscription'; // New component
 
 const AppRouter = () => {
   return (
@@ -16,7 +16,7 @@ const AppRouter = () => {
       <Route path="/subscription/:id" element={<SubscriptionDetails />} /> 
       <Route path="/friends" element={<Friends />} />
       <Route path="/chats" element={<ChatListPage />} />
-      {/* <Route path="/chats/:roomName" element={<ChatListPage />} /> */}
+      <Route path="/add-subscription" element={<AddSubscription />} />
     </Routes>
   );
 };

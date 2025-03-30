@@ -1,105 +1,100 @@
-/* Import the same fonts */
 @import url('https://fonts.googleapis.com/css2?family=Signika:wght@700&family=Alexandria:wght@800&family=Montserrat+Alternates:wght@500&family=Montserrat:wght@400&family=Siemreap&display=swap');
 
-/* Main background and container styles */
-body {
-  margin: 0;
-  padding: 0;
-  font-family: 'Siemreap', 'Montserrat', sans-serif;
+/* Container for the Subscription Details page */
+.subscription-details-container {
+  position: relative;
   background-color: #393939;
   color: #FBFFFA;
   min-height: 100vh;
-  position: relative;
   overflow-x: hidden;
+  padding: 2rem;
+  font-family: 'Siemreap', 'Montserrat', sans-serif;
 }
 
-/* Gradient overlays to match the dashboard style */
-body::before {
+/* Gradient overlays scoped to the container */
+.subscription-details-container::before {
   content: "";
   position: absolute;
-  top: 10%;  
+  top: 10%;
   left: 10%;
-  width: 30%; 
-  height: 20%; 
+  width: 30%;
+  height: 20%;
   background: radial-gradient(circle, #457B9D, transparent);
-  filter: blur(70px); 
+  filter: blur(70px);
   transform: translate(-50%, -70%);
   opacity: 0.6;
   z-index: -1;
 }
 
-body::after {
+.subscription-details-container::after {
   content: "";
   position: absolute;
-  top: 5%;  
-  right: 5%; 
-  width: 40%; 
-  height: 30%; 
+  top: 5%;
+  right: 5%;
+  width: 40%;
+  height: 30%;
   background: radial-gradient(circle, #3381F0, transparent);
-  filter: blur(70px); 
+  filter: blur(70px);
   transform: translate(30%, -60%);
   opacity: 0.5;
   z-index: -1;
 }
 
-/* Additional gradient overlays */
-.bottom-left-ellipse {
+/* Additional gradient overlays (fixed, so they stay in place) */
+.bottom-left-ellipse,
+.bottom-right-ellipse,
+.bottom-center-ellipse,
+.bottom-right-red-ellipse {
+  pointer-events: none;
   position: fixed;
-  bottom: 0; 
-  left: 15%;  
-  width: 35%; 
-  height: 25%; 
+  z-index: -1;
+}
+
+.bottom-left-ellipse {
+  bottom: 0;
+  left: 15%;
+  width: 35%;
+  height: 25%;
   background: radial-gradient(circle, #E63946, transparent);
-  filter: blur(90px); 
+  filter: blur(90px);
   transform: translate(-70%, -50%);
   opacity: 0.6;
-  z-index: -1;
-  pointer-events: none;
 }
 
 .bottom-right-ellipse {
-  position: fixed;
-  bottom: 10%; 
-  right: 10%;  
-  width: 25%; 
+  bottom: 10%;
+  right: 10%;
+  width: 25%;
   height: 20%;
   background: radial-gradient(circle, #A8DADC, transparent);
-  filter: blur(90px); 
+  filter: blur(90px);
   transform: translate(80%, -20%);
   opacity: 0.7;
-  z-index: -1;
-  pointer-events: none;
 }
 
-/* New red gradient elements at the bottom */
 .bottom-center-ellipse {
-  position: fixed;
-  bottom: 5%; 
-  left: 50%;  
-  width: 40%; 
-  height: 30%; 
+  bottom: 5%;
+  left: 50%;
+  width: 40%;
+  height: 30%;
   background: radial-gradient(circle, #E63946, transparent);
-  filter: blur(80px); 
+  filter: blur(80px);
   transform: translate(-50%, 0);
   opacity: 0.5;
-  z-index: -1;
-  pointer-events: none;
 }
 
 .bottom-right-red-ellipse {
-  position: fixed;
-  bottom: 15%; 
-  right: 25%;  
-  width: 30%; 
+  bottom: 15%;
+  right: 25%;
+  width: 30%;
   height: 25%;
   background: radial-gradient(circle, #FF5C5C, transparent);
-  filter: blur(70px); 
+  filter: blur(70px);
   transform: translate(20%, 30%);
   opacity: 0.4;
-  z-index: -1;
-  pointer-events: none;
 }
 
+/* Subscription Details Box */
 .subscription-details {
   max-width: 800px;
   margin: 2rem auto;
@@ -112,39 +107,40 @@ body::after {
 }
 
 /* Headings */
-h2, h3 {
+.subscription-details h2,
+.subscription-details h3 {
   color: #fff;
   margin-bottom: 1.5rem;
   font-weight: 600;
   font-family: 'Siemreap', sans-serif;
 }
 
-h2 {
+.subscription-details h2 {
   font-size: 1.8rem;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   padding-bottom: 0.75rem;
   text-align: center;
 }
 
-h3 {
+.subscription-details h3 {
   font-size: 1.4rem;
   margin-top: 2rem;
   color: #A8DADC;
 }
 
-/* Text and paragraphs */
-p {
+/* Paragraphs and text */
+.subscription-details p {
   margin-bottom: 0.75rem;
   line-height: 1.6;
 }
 
-strong {
+.subscription-details strong {
   color: #fff;
   font-weight: 600;
 }
 
-/* Form elements */
-label {
+/* Form Elements */
+.subscription-details label {
   display: block;
   margin-bottom: 0.5rem;
   color: #FBFFFA;
@@ -154,7 +150,7 @@ label {
   margin-left: 10px;
 }
 
-select {
+.subscription-details select {
   width: 100%;
   padding: 8px 15px;
   margin-bottom: 1.25rem;
@@ -172,17 +168,18 @@ select {
   padding-right: 30px;
 }
 
-select:focus {
+.subscription-details select:focus {
   outline: none;
   border-color: #3381F0;
 }
 
-select option {
+.subscription-details select option {
   background-color: #383838;
   color: #fff;
 }
 
-button {
+/* Button styles */
+.subscription-details button {
   background-color: #DEDBDB;
   color: #000;
   border: none;
@@ -199,11 +196,11 @@ button {
   width: 180px;
 }
 
-button:hover {
+.subscription-details button:hover {
   background-color: #ccc;
 }
 
-button:disabled {
+.subscription-details button:disabled {
   background-color: #4a5568;
   color: #a0aec0;
   cursor: not-allowed;
@@ -211,7 +208,7 @@ button:disabled {
 }
 
 /* Error message */
-.error {
+.subscription-details .error {
   color: #E63946;
   background-color: rgba(230, 57, 70, 0.1);
   padding: 0.75rem;
@@ -222,7 +219,7 @@ button:disabled {
 }
 
 /* Prediction result box */
-.prediction-box {
+.subscription-details .prediction-box {
   margin-top: 2rem;
   padding: 1.5rem;
   background-color: rgba(74, 74, 74, 0.7);
@@ -230,21 +227,15 @@ button:disabled {
   border: 1px solid rgba(168, 218, 220, 0.3);
 }
 
-.prediction-box h3 {
+.subscription-details .prediction-box h3 {
   margin-top: 0;
   color: #A8DADC;
 }
 
-.prediction-box p {
+.subscription-details .prediction-box p {
   font-size: 1.1rem;
   color: #fff;
   font-family: 'Siemreap', sans-serif;
-}
-
-/* User info section */
-.subscription-details > h3:nth-of-type(1) {
-  margin-top: 1.5rem;
-  color: #A8DADC;
 }
 
 /* Responsive adjustments */
@@ -254,11 +245,11 @@ button:disabled {
     padding: 1.5rem;
   }
   
-  h2 {
+  .subscription-details h2 {
     font-size: 1.5rem;
   }
   
-  h3 {
+  .subscription-details h3 {
     font-size: 1.2rem;
   }
 }

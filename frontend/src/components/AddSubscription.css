@@ -1,0 +1,92 @@
+@import url('https://fonts.googleapis.com/css2?family=Siemreap&display=swap');
+
+.add-subscription-container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: #393939;
+  padding: 40px;
+  color: #FBFFFA;
+  font-family: 'Siemreap', sans-serif;
+  box-sizing: border-box;
+}
+
+/* Center the heading and position the close button to the top right */
+.form-header {
+  position: relative;
+  margin-bottom: 30px;
+  text-align: center;
+}
+
+.form-header h2 {
+  margin: 0;
+  font-size: 30px;
+}
+
+.close-button {
+  position: absolute;
+  top: 0;
+  right: 0;
+  background: none;
+  border: none;
+  color: #FBFFFA;
+  font-size: 24px;
+  cursor: pointer;
+}
+
+form {
+  display: flex;
+  flex-direction: column;
+  align-items: center; /* so inputs are centered as well */
+}
+
+.input-group {
+  margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 500px; /* narrower fields */
+}
+
+.input-group label {
+  margin-bottom: 8px;
+  font-size: 17px;
+}
+
+.input-group input,
+.input-group select {
+  padding: 10px;
+  border: 1px solid #DEDBDB;
+  border-radius: 20px;
+  background-color: #393939; /* match container background */
+  color: #fff;
+  font-size: 16px;
+}
+
+/* Ensure placeholder text is visible but subtle */
+.input-group input::placeholder {
+  color: #747474;
+}
+
+/* Style the dropdown options to avoid white background on open */
+.input-group select option {
+  background-color: #393939;
+  color: #fff;
+}
+
+.submit-button {
+  width: 180px;
+  padding: 10px;
+  margin: 20px auto 0 auto;
+  background-color: #DEDBDB;
+  color: #000;
+  border: none;
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: 16px;
+  text-align: center;
+}
+
+.submit-button:hover {
+  background-color: #ccc;
+}

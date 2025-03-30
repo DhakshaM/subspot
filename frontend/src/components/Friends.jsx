@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import './Market.css';  
+import './Market.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCircleUser, faSearch } from '@fortawesome/free-solid-svg-icons';
 import { Link, useNavigate } from 'react-router-dom';
-import ChatIcon from './ChatIcon'; 
+import ChatIcon from './ChatIcon';
 import axios from 'axios';
 
 function Friends() {
@@ -44,7 +44,7 @@ function Friends() {
 
   const toggleDropdown = () => setIsDropdownOpen(!isDropdownOpen);
 
-  // SAMPLE data updated to match "username" and "mutual_friends_count"
+  // Sample data for demo purposes:
   const [suggestedFriends, setSuggestedFriends] = useState([
     { id: 1, username: 'John Doe', mutual_friends_count: 2 },
     { id: 2, username: 'Alice Johnson', mutual_friends_count: 4 },
@@ -58,7 +58,7 @@ function Friends() {
   // Handle tab change
   const handleTabChange = (tab) => setActiveTab(tab);
 
-  // Show pop-up message
+  // Show popup message
   const showPopupMessage = (message) => {
     setPopupMessage(message);
     setShowPopup(true);
@@ -68,20 +68,21 @@ function Friends() {
   // Simulate sending connection request
   const handleConnect = async (id) => {
     try {
-      await axios.post(`/api/friends/connect/${id}/`);
+      // Simulate API call (or use axios.post if needed)
       showPopupMessage('Connection request sent');
-      // If you have an actual backend endpoint, call fetchSuggestedFriends() here
+      // Optionally, you might remove the connected friend from suggested list if needed:
+      // setSuggestedFriends(prev => prev.filter(friend => friend.id !== id));
     } catch (error) {
       console.error('Error connecting friend:', error);
     }
   };
 
-  // Remove friend from My Friends
+  // Remove friend from My Friends list
   const handleRemove = async (id) => {
     try {
-      await axios.delete(`/api/friends/remove/${id}/`);
+      // Simulate API call (or use axios.delete if needed)
+      setMyFriends(prev => prev.filter(friend => friend.id !== id));
       showPopupMessage('Friend removed');
-      // If you have an actual backend endpoint, call fetchMyFriends() here
     } catch (error) {
       console.error('Error removing friend:', error);
     }
@@ -90,8 +91,8 @@ function Friends() {
   // Determine which list to display based on activeTab
   const displayedList = activeTab === 'suggested' ? suggestedFriends : myFriends;
 
-  // Filter by search term (using "username" now)
-  const filteredList = displayedList.filter((friend) =>
+  // Filter by search term
+  const filteredList = displayedList.filter(friend =>
     friend.username.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -152,7 +153,7 @@ function Friends() {
         {activeTab === 'suggested' && (
           <div className="friends-list">
             {filteredList.length > 0 ? (
-              filteredList.map((friend) => (
+              filteredList.map(friend => (
                 <div className="subscription-item" key={friend.id}>
                   <div className="subscription-left">
                     <div className="subscription-text">
@@ -181,7 +182,7 @@ function Friends() {
         {activeTab === 'myFriends' && (
           <div className="friends-list">
             {filteredList.length > 0 ? (
-              filteredList.map((friend) => (
+              filteredList.map(friend => (
                 <Link 
                   to={`/chat/${friend.id}`} 
                   key={friend.id}
@@ -200,7 +201,7 @@ function Friends() {
                       <button
                         className="action-button"
                         onClick={(e) => { 
-                          e.preventDefault(); 
+                          e.preventDefault();
                           handleRemove(friend.id);
                         }}
                       >
@@ -211,7 +212,7 @@ function Friends() {
                 </Link>
               ))
             ) : (
-              <p className="no-results-message">No search match found</p>
+              <p className="no-results-message">You have no friends</p>
             )}
           </div>
         )}

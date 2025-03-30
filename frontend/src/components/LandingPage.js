@@ -128,11 +128,10 @@ function LandingPage() {
             </p>
           </div>
           <div className="ServiceCard">
-            <h3>Expense Prediction</h3>
+            <h3>Friends Connection</h3>
             <p>
-              Take control of your finances with our expense prediction feature
-              that analyzes your usage patterns to forecast future subscription
-              costs, helping you budget more effectively and avoid surprises.
+            Connect with friends and manage shared subscriptions effortlessly. 
+            Keep track of who’s subscribed to what and enjoy your favorite services together without any hassle.
             </p>
           </div>
           <div className="ServiceCard">
