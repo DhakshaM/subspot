@@ -26,4 +26,5 @@ backend/backend/settings.py
 
 frontend/build/
 backend/frontend_built/
+backend/.env
 

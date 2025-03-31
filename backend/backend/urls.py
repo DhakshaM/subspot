@@ -29,7 +29,7 @@ urlpatterns = [
     path('', index, name='index'),  
     path('subspot/', include('subspot.urls')),
     path('admin/', admin.site.urls),
-    path('api/chats', include('chats.urls')),
+    # path('api/chats', include('chats.urls')),
     # path('api/friends/', include('friends.urls')), 
     # re_path(r'^.*$', index, name='catchall'),  
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
