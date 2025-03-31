@@ -81,16 +81,32 @@ class SendConnectionRequestView(LoginRequiredMixin, View):
         existing_connection = FriendConnection.get_friendship(current_user, target_user)
         
         if existing_connection:
-            if existing_connection.from_user == current_user:
+            # only block if the status is accepted or pending
+            if existing_connection.status in ['accepted', 'pending']:
+                if existing_connection.from_user == current_user:
+                    return JsonResponse({
+                        'error': f'You already sent a connection request to this user (status: {existing_connection.status})'
+                    }, status=400)
+                else:
+                    return JsonResponse({
+                        'error': f'This user already sent you a connection request (status: {existing_connection.status})'
+                    }, status=400)
+            # if status is rejected, allow sending a new request
+            elif existing_connection.status == 'rejected':
+                connection = FriendConnection(
+                    from_user=current_user,
+                    to_user=target_user,
+                    status="pending"
+                )
+                connection.save()
+                
                 return JsonResponse({
-                    'error': f'You already sent a connection request to this user (status: {existing_connection.status})'
-                }, status=400)
-            else:
-                return JsonResponse({
-                    'error': f'This user already sent you a connection request (status: {existing_connection.status})'
-                }, status=400)
+                    'status': 'success',
+                    'message': f'Friend request sent to {target_user.username}',
+                    'connection_id': existing_connection.id
+                }, status=201)
         
-        # create new connection request
+        # create new connection request (no existing connection)
         connection = FriendConnection.objects.create(
             from_user=current_user,
             to_user=target_user,
@@ -183,3 +199,58 @@ class HandleConnectionRequestView(LoginRequiredMixin, View):
             connection.status = 'rejected'
             connection.save()
             return JsonResponse({'status': 'success', 'message': 'Friend request rejected'})
+        
+
+class FriendsSubscriptionsView(LoginRequiredMixin, View):
+    def get(self, request):
+       
+        # get all shareable subscriptions of friends
+
+        user = request.user
+        
+        friend_ids = FriendConnection.get_friend_ids(user)
+        
+        friends = User.objects.filter(id__in=friend_ids)
+        
+        subscriptions_list = []
+        
+        for friend in friends:
+            subscriptions = friend.subscriptions.filter(is_shareable=True)
+            
+            for sub in subscriptions:
+                subscription_data = {
+                    'id': sub.id,
+                    'service_name': sub.service_name,
+                    'renew_date': sub.renew_date.isoformat() if sub.renew_date else None,
+                    'logo': f"https://logo.clearbit.com/{sub.service_name.split()[0].lower()}.com",
+                    'friend': {
+                        'id': friend.id,
+                        'username': friend.username,
+                        'name': friend.name
+                    }
+                }
+                subscriptions_list.append(subscription_data)
+        
+        return JsonResponse(subscriptions_list, safe=False)
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class RemoveFriendView(LoginRequiredMixin, View):
+    def post(self, request):
+        user = request.user
+        data = request.POST
+        user_id = data.get('user_id')
+        
+        if not user_id:
+            return JsonResponse({'error': 'user_id is required'}, status=400)
+            
+        try:
+            connection = FriendConnection.objects.get(
+                (Q(from_user=user, to_user_id=user_id) | 
+                Q(from_user_id=user_id, to_user=user)),
+                status='accepted'
+            )
+            connection.delete()
+            return JsonResponse({'status': 'success', 'message': 'Friend removed successfully'})
+        except FriendConnection.DoesNotExist:
+            return JsonResponse({'error': 'No friendship found with this user'}, status=404)

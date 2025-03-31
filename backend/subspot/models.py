@@ -64,17 +64,28 @@ class FriendConnection(models.Model):
         unique_together = ('to_user', 'from_user') 
 
     def save(self, *args, **kwargs):
-        # check for reverse connections
-        existing = FriendConnection.objects.filter(
-            Q(from_user=self.to_user, to_user=self.from_user)
-        ).first()
+        if not self.pk:
+            existing = FriendConnection.objects.filter(
+                (Q(from_user=self.from_user) & Q(to_user=self.to_user)) |
+                (Q(from_user=self.to_user) & Q(to_user=self.from_user))
+            ).first()
+            
+            if existing and existing.pk != self.pk:
+                # if the request was initially rejected but now the other user is initiating
+                if existing.status == "rejected" and existing.from_user == self.to_user and existing.to_user == self.from_user:
+                    # update both the direction and status
+                    existing.from_user = self.from_user
+                    existing.to_user = self.to_user
+                    existing.status = self.status
+                    super(FriendConnection, existing).save(*args, **kwargs)
+                    return
+                elif self.status != existing.status:
+                    existing.status = self.status
+                    super(FriendConnection, existing).save(*args, **kwargs)
+                    return
+                return
         
-        if existing:
-            existing.status = self.status
-            existing.save()
-            return
-        
-        super().save(*args, **kwargs)   
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.id} {self.from_user.username} - {self.to_user.username} ({self.status})"

@@ -26,4 +26,6 @@ urlpatterns = [
     path("connection/request/", friendspage_views.SendConnectionRequestView.as_view(), name="send_connection_request"),
     path("connections/", friendspage_views.UserConnectionsView.as_view(), name="user_connections"),
     path("connection/handle/", friendspage_views.HandleConnectionRequestView.as_view(), name="handle_connection_request"),
+    path("friends/subscriptions/", friendspage_views.FriendsSubscriptionsView.as_view(), name="friends_subscriptions"),
+    path("connection/remove/", friendspage_views.RemoveFriendView.as_view(), name="remove_friend"),
 ]

@@ -130,11 +130,11 @@
 
 /* ---------------- FRIENDS OVERRIDE ----------------
    If your Friends.jsx also uses .subscription-toggle
-   but you want it narrower, place an override for
+   but you want it wider, place an override for
    .subscription-toggle inside .friends-container
 */
 .friends-container .subscription-toggle {
-  width: 350px !important; /* narrower for Friends page */
+  width: 550px !important; /* wider to fit all three tabs */
 }
 
 /* Search Bar (only for Buy tab) */
@@ -527,4 +527,12 @@
   20% { opacity: 1; }
   80% { opacity: 1; }
   100% { opacity: 0; }
+}
+
+.subscription-renewal-date {
+  font-size: 14px;
+  color: #FBFFFA;
+  padding: 4px 8px;
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
 }

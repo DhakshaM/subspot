@@ -89,8 +89,6 @@ DATABASES = {
         'NAME': 'subspot_db',   # Change this to your database name
         'USER': 'root',      # Change this to your MySQL username
         'PASSWORD': 'Poku@2408',  # Change this to your MySQL password
-        'PASSWORD': 'password',  # Change this to your MySQL password
-        'PASSWORD': 'Pa%%w0rD',  # Change this to your MySQL password
         'HOST': 'localhost',  # Use the actual host if MySQL is running remotely
         'PORT': '3306',  # Default MySQL port
     }
