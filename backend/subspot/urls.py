@@ -2,6 +2,7 @@ from django.urls import path
 from .views import dashboard_views, marketpage_views, friendspage_views
 from .views import auth
 from .views import ml_prediction_views
+from .views.chat_views import ChatListView, ChatDetailView, StartChatView, MarkMessagesReadView, MessageCreateView
 
 urlpatterns = [
     path("auth/login/", auth.Login.as_view(), name="Login"),
@@ -28,4 +29,11 @@ urlpatterns = [
     path("connection/handle/", friendspage_views.HandleConnectionRequestView.as_view(), name="handle_connection_request"),
     path("friends/subscriptions/", friendspage_views.FriendsSubscriptionsView.as_view(), name="friends_subscriptions"),
     path("connection/remove/", friendspage_views.RemoveFriendView.as_view(), name="remove_friend"),
+    
+    # Chat endpoints
+    path("chats/", ChatListView.as_view(), name="chat-list"),
+    path("chats/detail/", ChatDetailView.as_view(), name="chat-detail"),
+    path("chats/start/", StartChatView.as_view(), name="chat-start"),
+    path("messages/create/", MessageCreateView.as_view(), name="message-create"),
+    path("messages/mark-read/", MarkMessagesReadView.as_view(), name="message-mark-read"),
 ]

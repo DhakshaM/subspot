@@ -142,3 +142,56 @@ class MonthlyExpense(models.Model):
     def __str__(self):
         return f"{self.id} {self.user.username} - {self.month_name}: ${self.amount}"
 
+
+class Chat(models.Model):
+    participants = models.ManyToManyField(User, related_name='chats')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)  # Add this field
+    name = models.CharField(max_length=255, blank=True, null=True)
+    
+    def __str__(self):
+        return f"Chat {self.id} - {self.name or 'Unnamed'}"
+
+    def get_other_participant(self, user):
+        """Get the other participant in a two-person chat"""
+        return self.participants.exclude(id=user.id).first()
+    
+    @classmethod
+    def get_or_create_chat(cls, user1, user2):
+        """Get existing chat between two users or create a new one"""
+        # Look for an existing chat with both users as participants
+        chats = cls.objects.filter(participants=user1).filter(participants=user2)
+        
+        if chats.exists():
+            return chats.first()
+        
+        # Create a new chat and add participants
+        chat = cls.objects.create()
+        chat.participants.add(user1, user2)
+        return chat
+    
+    class Meta:
+        ordering = ['-created_at']
+
+class Message(models.Model):
+    MESSAGE_TYPES = [
+        ('text', 'Text'),
+        ('image', 'Image'),
+        ('file', 'File'),
+    ]
+    
+    chat = models.ForeignKey(Chat, on_delete=models.CASCADE, related_name='messages')
+    sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name='sent_messages')
+    text = models.TextField()
+    file = models.FileField(upload_to='chat_files/', blank=True, null=True)
+    message_type = models.CharField(max_length=10, choices=MESSAGE_TYPES, default='text')
+    reply_to = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, related_name='replies')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    is_read = models.BooleanField(default=False)  # Add this field
+    
+    def __str__(self):
+        return f"Message {self.id} from {self.sender.username} in Chat {self.chat.id}"
+    
+    class Meta:
+        ordering = ['created_at']
