@@ -397,10 +397,15 @@ const handleSellFormSubmit = (e) => {
     setSelectedItem(null);
   };
 
-  // Single button: Contact Seller
+  // Update the handleContactSeller function to use the existing seller_id
   const handleContactSeller = () => {
-    // Navigate to the chat page (replace '/chat' with your actual route)
-    navigate('/chats');
+    if (!selectedItem || !selectedItem.seller_id) {
+      console.error("No seller ID available for this listing");
+      return;
+    }
+    
+    // Navigate to the chat page with the seller's user ID
+    navigate(`/chats?user_id=${selectedItem.seller_id}`);
     handleCloseBuyModal();
   };
 

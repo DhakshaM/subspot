@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   faArrowLeft,
@@ -13,34 +13,27 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import './ChatListPage.css';
 
+// Update the API base URL to match the Dashboard.js pattern
+const API_BASE_URL = 'http://localhost:8000/subspot/';
+
+// Add this function to parse the URL parameters
+const getURLParams = () => {
+  const queryParams = new URLSearchParams(window.location.search);
+  return {
+    userId: queryParams.get('user_id'),
+  };
+};
+
 const ChatListPage = () => {
-  // Now we include both the value AND the setter
-  const [chatList, setChatList] = useState([
-    { id: 'Friend1', name: 'Friend1' },
-    { id: 'Friend2', name: 'Friend2' },
-    { id: 'Seller1', name: 'Seller1' },
-  ]);
-
+  const navigate = useNavigate();
+  // Chat state
+  const [chatList, setChatList] = useState([]);
   const [selectedChat, setSelectedChat] = useState(null);
-
-  // Preload some messages for Friend1
-  const [messages, setMessages] = useState({
-    Friend1: [
-      {
-        user: 'Friend1',
-        message: 'Hello!',
-        time: '10:00 AM',
-      },
-      {
-        user: 'Me',
-        message: 'Hi there!',
-        time: '10:01 AM',
-      },
-    ],
-  });
-
+  const [messages, setMessages] = useState({});
   const [typedMessage, setTypedMessage] = useState('');
   const [replyMsg, setReplyMsg] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [userInfo, setUserInfo] = useState(null);
   const fileInputRef = useRef(null);
 
   // Modals / popups
@@ -52,44 +45,164 @@ const ChatListPage = () => {
   const menuRef = useRef(null);
   const msgOptionsRef = useRef(null);
 
-  // WebSocket for the current friend
-  const [socket, setSocket] = useState(null);
-
   const getTimeStamp = () =>
     new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-  // Open WebSocket whenever selectedChat changes
+  // Fetch user info like in Dashboard.js
   useEffect(() => {
-    if (!selectedChat) return;
+    fetch(`${API_BASE_URL}auth/user/`, { credentials: 'include' })
+      .then((res) => {
+        if (res.status === 401) {
+          navigate('/');
+          return;
+        }
+        return res.json();
+      })
+      .then((data) => {
+        if (data) {
+          setUserInfo(data);
+        }
+      })
+      .catch((err) => console.error('Error fetching user info:', err));
+  }, [navigate]);
 
-    const ws = new WebSocket(`ws://127.0.0.1:8000/ws/chat/${selectedChat}/`);
+  // Update component initialization to check for URL parameters only once
+  useEffect(() => {
+    const { userId } = getURLParams();
+    
+    // Only handle the URL param once when the component mounts
+    if (userId && chatList.length > 0) {
+      setIsLoading(true);
+      startNewChat(userId);
+    }
+  }, [chatList.length]); // Only re-run when chatList changes
 
-    ws.onopen = () => {
-      console.log('WebSocket connected for room:', selectedChat);
-    };
+  // Fetch chat list when component mounts - matches ChatListView in chat_views.py
+  useEffect(() => {
+    const fetchChats = async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}chats/`, {
+          credentials: 'include',
+        });
 
-    ws.onmessage = (e) => {
-      const data = JSON.parse(e.data);
-      if (data.message) {
-        setMessages((prev) => ({
-          ...prev,
-          [selectedChat]: [...(prev[selectedChat] || []), data],
+        if (response.status === 401) {
+          navigate('/');
+          return;
+        }
+
+        const data = await response.json();
+
+        // Transform the data to match the response from ChatListView
+        const fetchedChats = data.map((chat) => ({
+          id: chat.id.toString(),
+          name: chat.other_participant.username || `Chat #${chat.id}`,
+          lastMessage: chat.last_message?.text || '',
+          unreadCount: chat.unread_count || 0,
         }));
+
+        setChatList(fetchedChats);
+        setIsLoading(false);
+      } catch (error) {
+        console.error('Error fetching chats:', error);
+        setIsLoading(false);
       }
     };
 
-    ws.onerror = (err) => console.error('WebSocket error:', err);
-    ws.onclose = (e) => console.warn('WebSocket closed:', e);
+    fetchChats();
+  }, [navigate]);
 
-    setSocket(ws);
+  // Fix the fetchMessages function to properly convert types when comparing IDs
+  useEffect(() => {
+    if (!selectedChat) return;
 
-    return () => ws.close();
-  }, [selectedChat]);
+    const fetchMessages = async () => {
+      try {
+        // Create URLSearchParams for POST request to match ChatDetailView
+        const formData = new URLSearchParams();
+        formData.append('chat_id', selectedChat);
 
-  // Send a message
-  const handleSend = () => {
-    if (!socket || !typedMessage.trim() || !selectedChat) return;
+        const response = await fetch(`${API_BASE_URL}chats/detail/`, {
+          method: 'POST',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: formData,
+        });
 
+        if (response.status === 401) {
+          navigate('/');
+          return;
+        }
+
+        const data = await response.json();
+
+        // Transform messages to match our component's structure
+        const transformedMessages = data.messages.map((msg) => {
+          // Use string comparison or convert both to numbers
+          const isMine = Number(msg.sender_id) === Number(userInfo?.id);
+
+          const messageObj = {
+            id: msg.id,
+            user: isMine ? 'Me' : msg.sender_name,
+            message: msg.text,
+            time: new Date(msg.created_at).toLocaleTimeString([], {
+              hour: '2-digit',
+              minute: '2-digit',
+            }),
+            is_read: msg.is_read,
+            sender_id: msg.sender_id
+          };
+
+          return messageObj;
+        });
+
+        setMessages((prev) => ({
+          ...prev,
+          [selectedChat]: transformedMessages,
+        }));
+
+        // Mark messages as read when chat is selected
+        markMessagesAsRead(selectedChat);
+      } catch (error) {
+        console.error('Error fetching messages:', error);
+      }
+    };
+
+    fetchMessages();
+  }, [selectedChat, navigate, userInfo]);
+
+  // Mark messages as read using MarkMessagesReadView
+  const markMessagesAsRead = async (chatId) => {
+    try {
+      const formData = new URLSearchParams();
+      formData.append('chat_id', chatId);
+
+      await fetch(`${API_BASE_URL}messages/mark-read/`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: formData,
+      });
+
+      // Update the unreadCount in the chat list
+      setChatList((prev) =>
+        prev.map((chat) =>
+          chat.id === chatId ? { ...chat, unreadCount: 0 } : chat
+        )
+      );
+    } catch (error) {
+      console.error('Error marking messages as read:', error);
+    }
+  };
+
+  // Send a message using MessageCreateView in chat_views.py
+  const handleSend = async () => {
+    if (!typedMessage.trim() || !selectedChat) return;
+
+    // Create new message object for UI
     const newMessage = {
       user: 'Me',
       message: typedMessage,
@@ -103,37 +216,107 @@ const ChatListPage = () => {
       };
     }
 
+    // Optimistically update UI
     setMessages((prev) => ({
       ...prev,
       [selectedChat]: [...(prev[selectedChat] || []), newMessage],
     }));
 
-    socket.send(JSON.stringify({ message: typedMessage }));
+    try {
+      // Create form data for POST request to match MessageCreateView
+      const formData = new URLSearchParams();
+      formData.append('chat_id', selectedChat);
+      formData.append('text', typedMessage);
+      
+      // Add reply_to_id if user is replying to a message
+      if (replyMsg?.id) {
+        formData.append('reply_to_id', replyMsg.id);
+      }
+
+      // Send to REST API using MessageCreateView
+      const response = await fetch(`${API_BASE_URL}messages/create/`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: formData,
+      });
+
+      if (response.status === 401) {
+        navigate('/');
+        return;
+      }
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('Error sending message:', errorData.error);
+        return;
+      }
+
+      const data = await response.json();
+      
+      // We could update the message with the returned data if needed
+      // For example, updating the message ID for future operations
+      setMessages((prev) => {
+        const currentMessages = [...prev[selectedChat]];
+        const lastIndex = currentMessages.length - 1;
+        
+        // Update last message with ID from server and other details
+        currentMessages[lastIndex] = {
+          ...currentMessages[lastIndex],
+          id: data.id,
+        };
+        
+        return {
+          ...prev,
+          [selectedChat]: currentMessages,
+        };
+      });
+
+    } catch (error) {
+      console.error('Error sending message:', error);
+    }
+
+    // Reset input
     setTypedMessage('');
     setReplyMsg(null);
   };
 
-  // File upload
+  // File upload - since there's no direct file upload endpoint,
+  // this is a placeholder for integration with your file upload system
   const handleUploadClick = () => {
     if (!selectedChat) return;
     fileInputRef.current?.click();
   };
 
-  const handleFileChange = (e) => {
+  const handleFileChange = async (e) => {
     const file = e.target.files[0];
     if (!file || !selectedChat) return;
 
     const fileName = file.name;
     const fileType = file.type.toLowerCase();
     const timeStamp = getTimeStamp();
-    const reader = new FileReader();
 
-    reader.onload = () => {
+    // Determine message type
+    let messageType = 'file';
+    if (fileType.startsWith('image/')) {
+      messageType = 'image';
+    } else if (
+      fileType === 'application/pdf' ||
+      fileName.toLowerCase().endsWith('.pdf')
+    ) {
+      messageType = 'pdf';
+    }
+
+    // Create message for optimistic UI update
+    const reader = new FileReader();
+    reader.onload = async () => {
       let newMsg = { user: 'Me', time: timeStamp };
-      if (fileType.startsWith('image/')) {
+      if (messageType === 'image') {
         newMsg.type = 'image';
         newMsg.src = reader.result;
-      } else if (fileType === 'application/pdf' || fileName.toLowerCase().endsWith('.pdf')) {
+      } else if (messageType === 'pdf') {
         newMsg.type = 'pdf';
         newMsg.src = reader.result;
         newMsg.fileName = fileName;
@@ -142,33 +325,100 @@ const ChatListPage = () => {
         newMsg.src = reader.result;
         newMsg.fileName = fileName;
       }
+
+      // Update UI optimistically
       setMessages((prev) => ({
         ...prev,
         [selectedChat]: [...(prev[selectedChat] || []), newMsg],
       }));
+
+      // Since there's no direct file upload endpoint in chat_views.py,
+      // this is a placeholder for integration with your file upload system
     };
+
     reader.readAsDataURL(file);
     e.target.value = '';
   };
 
-  // Image/PDF modals
-  const openImageModal = (src) => setModalImage(src);
-  const closeImageModal = () => setModalImage(null);
-  const openPdfModal = (src, fileName) => setPdfModal({ open: true, src, fileName });
-  const closePdfModal = () => setPdfModal({ open: false, src: '', fileName: '' });
+  // Update startNewChat to prevent duplicate chat creation
+  const startNewChat = async (userId, initialMessage = null) => {
+    // First check if we already have a chat with this user
+    const existingChat = chatList.find(chat => {
+      return chat.name === userInfo?.username;
+    });
+    
+    if (existingChat) {
+      // Just select the existing chat instead of creating a new one
+      setSelectedChat(existingChat.id);
+      setIsLoading(false);
+      return;
+    }
 
-  // Header menu
-  const toggleMenu = () => setMenuOpen((prev) => !prev);
+    try {
+      // Create URLSearchParams for POST request to match StartChatView
+      const formData = new URLSearchParams();
+      formData.append('user_id', userId);
+      
+      const response = await fetch(`${API_BASE_URL}chats/start/`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: formData
+      });
 
-  // Message options
-  const toggleMsgOptions = (index) =>
-    setOpenMsgOptions((prev) => (prev === index ? null : index));
+      if (response.status === 401) {
+        navigate('/');
+        return;
+      }
 
-  const openDeletePopup = (index) => setDeletePopup({ open: true, msgIndex: index });
-  const handleDeletePopupClose = () => setDeletePopup({ open: false, msgIndex: null });
+      const data = await response.json();
+      
+      // Add to chat list if not already there
+      setChatList(prev => {
+        // Check if this chat already exists in our list
+        if (!prev.some(chat => chat.id === data.id.toString())) {
+          return [
+            ...prev,
+            {
+              id: data.id.toString(),
+              name: data.other_participant.username || `Chat #${data.id}`,
+              lastMessage: data.last_message?.text || '',
+              unreadCount: data.unread_count || 0,
+            }
+          ];
+        }
+        return prev;
+      });
+      
+      // Select this chat
+      setSelectedChat(data.id.toString());
+      
+      // If there's an initial message, send it
+      if (initialMessage) {
+        setTypedMessage(initialMessage);
+        // Use setTimeout to ensure the chat is selected before sending
+        setTimeout(() => handleSend(), 300);
+      }
+      
+      setIsLoading(false);
+    } catch (error) {
+      console.error('Error starting new chat:', error);
+      setIsLoading(false);
+    }
+  };
 
-  // Delete or reply
-  const handleDeleteMessage = (chatId, msgIndex, deleteForAll = false) => {
+  // Delete message - since there's no API endpoint for deleting messages in chat_views.py,
+  // this is a placeholder for future integration
+  const handleDeleteMessage = async (
+    chatId,
+    msgIndex,
+    deleteForAll = false
+  ) => {
+    const message = messages[chatId][msgIndex];
+
+    // Optimistically update UI
     setMessages((prev) => {
       const updated = [...(prev[chatId] || [])];
       if (!deleteForAll) {
@@ -186,9 +436,28 @@ const ChatListPage = () => {
       }
       return { ...prev, [chatId]: updated };
     });
+
+    // Since there's no delete message endpoint in chat_views.py,
+    // this is a placeholder for future integration
+
     setDeletePopup({ open: false, msgIndex: null });
     setOpenMsgOptions(null);
   };
+
+  // UI helper functions
+  const openImageModal = (src) => setModalImage(src);
+  const closeImageModal = () => setModalImage(null);
+  const openPdfModal = (src, fileName) =>
+    setPdfModal({ open: true, src, fileName });
+  const closePdfModal = () =>
+    setPdfModal({ open: false, src: '', fileName: '' });
+  const toggleMenu = () => setMenuOpen((prev) => !prev);
+  const toggleMsgOptions = (index) =>
+    setOpenMsgOptions((prev) => (prev === index ? null : index));
+  const openDeletePopup = (index) =>
+    setDeletePopup({ open: true, msgIndex: index });
+  const handleDeletePopupClose = () =>
+    setDeletePopup({ open: false, msgIndex: null });
 
   const handleReplyMessage = (msg) => {
     setReplyMsg(msg);
@@ -206,9 +475,11 @@ const ChatListPage = () => {
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    return () =>
+      document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // The rest of your component's JSX remains the same
   return (
     <div className="chats-container">
       <div className="chats-wrapper">
@@ -222,24 +493,41 @@ const ChatListPage = () => {
           </header>
 
           <ul className="chat-list" style={{ textAlign: 'center' }}>
-            {chatList.map((chat) => (
-              <li
-                key={chat.id}
-                className={`chat-item ${selectedChat === chat.id ? 'active' : ''}`}
-                onClick={() => setSelectedChat(chat.id)}
-              >
-                <span className="chat-link">{chat.name}</span>
-              </li>
-            ))}
+            {isLoading ? (
+              <li className="chat-item">Loading chats...</li>
+            ) : chatList.length === 0 ? (
+              <li className="chat-item">No chats found</li>
+            ) : (
+              chatList.map((chat) => (
+                <li
+                  key={chat.id}
+                  className={`chat-item ${
+                    selectedChat === chat.id ? 'active' : ''
+                  }`}
+                  onClick={() => setSelectedChat(chat.id)}
+                >
+                  <span className="chat-link">{chat.name}</span>
+                  {chat.unreadCount > 0 && (
+                    <span className="unread-count">{chat.unreadCount}</span>
+                  )}
+                </li>
+              ))
+            )}
           </ul>
         </div>
 
         {/* Right Panel */}
-        <div className={selectedChat ? 'chats-right-panel doodle' : 'chats-right-panel'}>
+        <div
+          className={
+            selectedChat ? 'chats-right-panel doodle' : 'chats-right-panel'
+          }
+        >
           {selectedChat ? (
             <div className="chat-content">
               <header className="chats-right-header">
-                <span className="chat-contact-name">{selectedChat}</span>
+                <span className="chat-contact-name">
+                  {chatList.find((chat) => chat.id === selectedChat)?.name}
+                </span>
                 <div className="chat-header-actions" ref={menuRef}>
                   <FontAwesomeIcon
                     icon={faEllipsisV}
@@ -251,7 +539,10 @@ const ChatListPage = () => {
                       <div
                         className="dropdown-item"
                         onClick={() => {
-                          setMessages((prev) => ({ ...prev, [selectedChat]: [] }));
+                          setMessages((prev) => ({
+                            ...prev,
+                            [selectedChat]: [],
+                          }));
                           setMenuOpen(false);
                         }}
                       >
@@ -260,8 +551,10 @@ const ChatListPage = () => {
                       <div
                         className="dropdown-item"
                         onClick={() => {
-                          // Remove friend from chatList and messages
-                          setChatList((prev) => prev.filter((c) => c.id !== selectedChat));
+                          // Remove chat from chatList and messages
+                          setChatList((prev) =>
+                            prev.filter((c) => c.id !== selectedChat)
+                          );
                           setMessages((prev) => {
                             const newMsgs = { ...prev };
                             delete newMsgs[selectedChat];
@@ -282,9 +575,17 @@ const ChatListPage = () => {
                 {(messages[selectedChat] || []).map((msg, index) => {
                   const isMine = msg.user === 'Me';
                   return (
-                    <div key={index} className={`message-wrapper ${isMine ? 'mine' : 'theirs'}`}>
+                    <div
+                      key={index}
+                      className={`message-wrapper ${
+                        isMine ? 'mine' : 'theirs'
+                      }`}
+                    >
                       {isMine && (
-                        <div className="msg-options-container" onClick={(e) => e.stopPropagation()}>
+                        <div
+                          className="msg-options-container"
+                          onClick={(e) => e.stopPropagation()}
+                        >
                           <FontAwesomeIcon
                             icon={faEllipsisH}
                             className="msg-options-icon"
@@ -295,10 +596,16 @@ const ChatListPage = () => {
                               className="msg-options-dropdown"
                               onClick={(e) => e.stopPropagation()}
                             >
-                              <div className="msg-option-item" onClick={() => handleReplyMessage(msg)}>
+                              <div
+                                className="msg-option-item"
+                                onClick={() => handleReplyMessage(msg)}
+                              >
                                 Reply
                               </div>
-                              <div className="msg-option-item" onClick={() => openDeletePopup(index)}>
+                              <div
+                                className="msg-option-item"
+                                onClick={() => openDeletePopup(index)}
+                              >
                                 Delete
                               </div>
                             </div>
@@ -306,18 +613,29 @@ const ChatListPage = () => {
                         </div>
                       )}
 
-                      <div className={`message-bubble ${isMine ? 'mine' : 'theirs'}`}>
+                      <div
+                        className={`message-bubble ${
+                          isMine ? 'mine' : 'theirs'
+                        }`}
+                      >
                         {msg.replyTo && (
                           <div className="mini-reply-bubble">
-                            <span className="mini-reply-sender">{msg.replyTo.user}</span>
-                            <span className="mini-reply-text">{msg.replyTo.message}</span>
+                            <span className="mini-reply-sender">
+                              {msg.replyTo.user}
+                            </span>
+                            <span className="mini-reply-text">
+                              {msg.replyTo.message}
+                            </span>
                           </div>
                         )}
 
                         {msg.type === 'deleted' ? (
                           <>
                             <div className="message-text deleted">
-                              <FontAwesomeIcon icon={faBan} className="deleted-icon" />
+                              <FontAwesomeIcon
+                                icon={faBan}
+                                className="deleted-icon"
+                              />
                               {msg.message}
                             </div>
                             <div className="message-time">{msg.time}</div>
@@ -336,10 +654,17 @@ const ChatListPage = () => {
                           <>
                             <div
                               className="pdf-preview"
-                              onClick={() => openPdfModal(msg.src, msg.fileName)}
+                              onClick={() =>
+                                openPdfModal(msg.src, msg.fileName)
+                              }
                             >
-                              <FontAwesomeIcon icon={faFilePdf} className="pdf-icon" />
-                              <span className="pdf-filename">{msg.fileName}</span>
+                              <FontAwesomeIcon
+                                icon={faFilePdf}
+                                className="pdf-icon"
+                              />
+                              <span className="pdf-filename">
+                                {msg.fileName}
+                              </span>
                             </div>
                             <div className="message-time">{msg.time}</div>
                           </>
@@ -364,7 +689,10 @@ const ChatListPage = () => {
                       </div>
 
                       {!isMine && (
-                        <div className="msg-options-container" onClick={(e) => e.stopPropagation()}>
+                        <div
+                          className="msg-options-container"
+                          onClick={(e) => e.stopPropagation()}
+                        >
                           <FontAwesomeIcon
                             icon={faEllipsisH}
                             className="msg-options-icon"
@@ -375,10 +703,16 @@ const ChatListPage = () => {
                               className="msg-options-dropdown"
                               onClick={(e) => e.stopPropagation()}
                             >
-                              <div className="msg-option-item" onClick={() => handleReplyMessage(msg)}>
+                              <div
+                                className="msg-option-item"
+                                onClick={() => handleReplyMessage(msg)}
+                              >
                                 Reply
                               </div>
-                              <div className="msg-option-item" onClick={() => openDeletePopup(index)}>
+                              <div
+                                className="msg-option-item"
+                                onClick={() => openDeletePopup(index)}
+                              >
                                 Delete
                               </div>
                             </div>
@@ -393,7 +727,10 @@ const ChatListPage = () => {
               {replyMsg && (
                 <div className="reply-bubble">
                   <span className="reply-text">{replyMsg.message}</span>
-                  <span className="cancel-reply" onClick={() => setReplyMsg(null)}>
+                  <span
+                    className="cancel-reply"
+                    onClick={() => setReplyMsg(null)}
+                  >
                     &times;
                   </span>
                 </div>
@@ -409,7 +746,11 @@ const ChatListPage = () => {
                     if (e.key === 'Enter') handleSend();
                   }}
                 />
-                <FontAwesomeIcon icon={faPaperPlane} className="send-icon" onClick={handleSend} />
+                <FontAwesomeIcon
+                  icon={faPaperPlane}
+                  className="send-icon"
+                  onClick={handleSend}
+                />
                 <input
                   type="file"
                   accept="image/*,.pdf,.doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
@@ -417,7 +758,11 @@ const ChatListPage = () => {
                   style={{ display: 'none' }}
                   onChange={handleFileChange}
                 />
-                <FontAwesomeIcon icon={faPaperclip} className="upload-icon" onClick={handleUploadClick} />
+                <FontAwesomeIcon
+                  icon={faPaperclip}
+                  className="upload-icon"
+                  onClick={handleUploadClick}
+                />
               </div>
             </div>
           ) : (
@@ -427,19 +772,37 @@ const ChatListPage = () => {
       </div>
 
       {deletePopup.open && (
-        <div className="delete-popup-modal" onClick={handleDeletePopupClose}>
-          <div className="delete-popup-content" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="delete-popup-modal"
+          onClick={handleDeletePopupClose}
+        >
+          <div
+            className="delete-popup-content"
+            onClick={(e) => e.stopPropagation()}
+          >
             <p>Delete message:</p>
             <div className="delete-popup-options">
               <span
                 className="delete-option"
-                onClick={() => handleDeleteMessage(selectedChat, deletePopup.msgIndex, false)}
+                onClick={() =>
+                  handleDeleteMessage(
+                    selectedChat,
+                    deletePopup.msgIndex,
+                    false
+                  )
+                }
               >
                 Delete for me
               </span>
               <span
                 className="delete-option"
-                onClick={() => handleDeleteMessage(selectedChat, deletePopup.msgIndex, true)}
+                onClick={() =>
+                  handleDeleteMessage(
+                    selectedChat,
+                    deletePopup.msgIndex,
+                    true
+                  )
+                }
               >
                 Delete for all
               </span>
@@ -450,12 +813,26 @@ const ChatListPage = () => {
 
       {modalImage && (
         <div className="image-modal" onClick={closeImageModal}>
-          <div className="image-modal-content" onClick={(e) => e.stopPropagation()}>
-            <span className="close-modal-icon" onClick={closeImageModal}>
+          <div
+            className="image-modal-content"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <span
+              className="close-modal-icon"
+              onClick={closeImageModal}
+            >
               &times;
             </span>
-            <img src={modalImage} alt="Enlarged" className="modal-image" />
-            <a href={modalImage} download="image.png" className="download-link">
+            <img
+              src={modalImage}
+              alt="Enlarged"
+              className="modal-image"
+            />
+            <a
+              href={modalImage}
+              download="image.png"
+              className="download-link"
+            >
               <FontAwesomeIcon icon={faDownload} />
             </a>
           </div>
@@ -464,11 +841,21 @@ const ChatListPage = () => {
 
       {pdfModal.open && (
         <div className="pdf-modal" onClick={closePdfModal}>
-          <div className="pdf-modal-content" onClick={(e) => e.stopPropagation()}>
-            <span className="close-pdf-modal" onClick={closePdfModal}>
+          <div
+            className="pdf-modal-content"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <span
+              className="close-pdf-modal"
+              onClick={closePdfModal}
+            >
               &times;
             </span>
-            <embed src={pdfModal.src} type="application/pdf" className="pdf-embed" />
+            <embed
+              src={pdfModal.src}
+              type="application/pdf"
+              className="pdf-embed"
+            />
             <a
               href={pdfModal.src}
               download={pdfModal.fileName}

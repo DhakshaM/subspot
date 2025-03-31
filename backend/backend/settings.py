@@ -376,11 +376,8 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'corsheaders',
     'subspot',
-<<<<<<< HEAD
-=======
     'rest_framework',
     'channels',
->>>>>>> 06206314 (remove old and add new backend for chat and integrate with frontend)
 ]
 
 MIDDLEWARE = [

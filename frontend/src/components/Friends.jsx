@@ -448,33 +448,39 @@ function Friends() {
           <div className="friends-list">
             {filteredList.length > 0 ? (
               filteredList.map(friend => (
-                <Link 
-                  to={`/chat/${friend.id}`} 
+                <div 
+                  className="subscription-item"
                   key={friend.id}
-                  style={{ textDecoration: 'none', color: 'inherit' }}
+                  style={{ cursor: 'pointer' }}
                 >
-                  <div className="subscription-item">
-                    <div className="subscription-left">
-                      <div className="subscription-text">
-                        <div className="subscription-name">{friend.username}</div>
-                        <div className="subscription-duration">
-                          {friend.mutual_friends_count ? `${friend.mutual_friends_count} mutual friends` : 'Friend'}
-                        </div>
+                  <div className="subscription-left">
+                    <div className="subscription-text">
+                      <div className="subscription-name">{friend.username}</div>
+                      <div className="subscription-duration">
+                        {friend.mutual_friends_count ? `${friend.mutual_friends_count} mutual friends` : 'Friend'}
                       </div>
                     </div>
-                    <div className="subscription-right">
-                      <button
-                        className="action-button"
-                        onClick={(e) => { 
-                          e.preventDefault();
-                          handleRemove(friend.id);
-                        }}
-                      >
-                        Remove
-                      </button>
-                    </div>
                   </div>
-                </Link>
+                  <div className="subscription-right">
+                    <Link
+                      to={`/chats?user_id=${friend.id}`}
+                      className="action-button"
+                      style={{ 
+                        textDecoration: 'none', 
+                        display: 'inline-block',
+                        marginRight: '10px'
+                      }}
+                    >
+                      Chat
+                    </Link>
+                    <button
+                      className="action-button"
+                      onClick={() => handleRemove(friend.id)}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </div>
               ))
             ) : (
               <p className="no-results-message">You have no friends</p>
